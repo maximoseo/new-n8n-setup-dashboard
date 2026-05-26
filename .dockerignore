@@ -1,0 +1,9 @@
+node_modules
+dist
+dist-server
+data
+dev-server.log
+*.log
+*.tsbuildinfo
+.git
+.playwright-mcp
