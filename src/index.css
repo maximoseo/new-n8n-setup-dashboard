@@ -3,8 +3,13 @@
 @tailwind utilities;
 
 :root {
-  color: #111827;
-  background: #f7f8fb;
+  --color-ink: #111827;
+  --color-slate: #475569;
+  --color-paper: #f7f8fb;
+  --color-line: #d9dee8;
+  --color-surface: #ffffff;
+  color: var(--color-ink);
+  background: var(--color-paper);
   font-family:
     "Segoe UI",
     -apple-system,
@@ -12,6 +17,14 @@
     Roboto,
     Arial,
     sans-serif;
+}
+
+.dark {
+  --color-ink: #e2e8f0;
+  --color-slate: #94a3b8;
+  --color-paper: #0f172a;
+  --color-line: #1e293b;
+  --color-surface: #172033;
 }
 
 * {
@@ -23,7 +36,14 @@ body {
   margin: 0;
   background:
     linear-gradient(180deg, rgba(29, 78, 216, 0.08), rgba(15, 159, 143, 0.06) 36%, transparent 62%),
-    #f7f8fb;
+    var(--color-paper);
+  color: var(--color-ink);
+}
+
+.dark body {
+  background:
+    linear-gradient(180deg, rgba(29, 78, 216, 0.08), rgba(15, 159, 143, 0.04) 36%, transparent 62%),
+    var(--color-paper);
 }
 
 button,
@@ -48,7 +68,7 @@ code {
 
 @layer components {
   .input {
-    @apply h-11 w-full rounded-md border border-line bg-white px-3 text-sm font-semibold text-ink outline-none transition placeholder:text-slate/60 focus:border-primary focus:ring-4 focus:ring-blue-100;
+    @apply h-11 w-full rounded-md border border-line bg-surface px-3 text-sm font-semibold text-ink outline-none transition placeholder:text-slate focus:border-primary focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950;
   }
 
   .btn-primary {
@@ -56,23 +76,23 @@ code {
   }
 
   .btn-secondary {
-    @apply inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line bg-white px-4 text-sm font-black text-ink shadow-sm transition hover:border-primary hover:text-primary;
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line bg-surface px-4 text-sm font-black text-ink shadow-sm transition hover:border-primary hover:text-primary;
   }
 
   .tab {
-    @apply inline-flex h-9 items-center justify-center rounded-md border border-line bg-white px-3 text-sm font-bold text-slate transition hover:border-primary hover:text-primary;
+    @apply inline-flex h-9 items-center justify-center rounded-md border border-line bg-surface px-3 text-sm font-bold text-slate transition hover:border-primary hover:text-primary;
   }
 
   .tab-active {
-    @apply inline-flex h-9 items-center justify-center rounded-md border border-primary bg-blue-50 px-3 text-sm font-black text-primary;
+    @apply inline-flex h-9 items-center justify-center rounded-md border border-primary bg-primary/10 px-3 text-sm font-black text-primary;
   }
 
   .badge-pass {
-    @apply mt-2 inline-flex rounded-sm bg-green-100 px-2 py-1 text-xs font-black text-green-700;
+    @apply mt-2 inline-flex rounded-sm bg-green-100 px-2 py-1 text-xs font-black text-green-700 dark:bg-green-950/50 dark:text-green-200;
   }
 
   .badge-warn {
-    @apply mt-2 inline-flex rounded-sm bg-amber-100 px-2 py-1 text-xs font-black text-amber-800;
+    @apply mt-2 inline-flex rounded-sm bg-amber-100 px-2 py-1 text-xs font-black text-amber-800 dark:bg-amber-950/50 dark:text-amber-100;
   }
 
   .code-editor {
@@ -84,6 +104,6 @@ code {
   }
 
   .chat-assistant {
-    @apply mr-8 rounded-md border border-line bg-white p-3 text-ink;
+    @apply mr-8 rounded-md border border-line bg-surface p-3 text-ink;
   }
 }

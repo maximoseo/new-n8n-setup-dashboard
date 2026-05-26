@@ -1,13 +1,15 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  darkMode: "class",
   content: ["./index.html", "./src/**/*.{ts,tsx}"],
   theme: {
     extend: {
       colors: {
-        ink: "#111827",
-        slate: "#475569",
-        paper: "#f7f8fb",
-        line: "#d9dee8",
+        ink: "var(--color-ink)",
+        slate: "var(--color-slate)",
+        paper: "var(--color-paper)",
+        line: "var(--color-line)",
+        surface: "var(--color-surface)",
         primary: "#1d4ed8",
         accent: "#0f9f8f"
       },

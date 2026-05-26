@@ -1,11 +1,15 @@
-import type { Site, SiteInput } from "../shared/types";
+import type { Site, SiteInput, UserSettings } from "../shared/types";
+import { supabase } from "./lib/supabase";
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const { data } = supabase ? await supabase.auth.getSession() : { data: { session: null } };
+  const headers = {
+    "content-type": "application/json",
+    ...(data.session ? { authorization: `Bearer ${data.session.access_token}` } : {}),
+    ...(options?.headers ?? {})
+  };
   const response = await fetch(url, {
-    headers: {
-      "content-type": "application/json",
-      ...(options?.headers ?? {})
-    },
+    headers,
     ...options
   });
 
@@ -19,6 +23,17 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
 
 export function fetchSites() {
   return request<{ sites: Site[] }>("/api/sites");
+}
+
+export function fetchUserSettings() {
+  return request<{ settings: UserSettings }>("/api/user-settings");
+}
+
+export function updateUserSettings(settings: Partial<UserSettings>) {
+  return request<{ settings: UserSettings }>("/api/user-settings", {
+    method: "PATCH",
+    body: JSON.stringify(settings)
+  });
 }
 
 export function createSite(input: SiteInput) {

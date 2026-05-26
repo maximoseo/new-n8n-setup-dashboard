@@ -3,10 +3,11 @@ import { randomUUID } from "node:crypto";
 import cors from "cors";
 import express from "express";
 import { z } from "zod";
+import { authMiddleware } from "./authMiddleware.js";
 import { generateArtifacts } from "./artifacts.js";
 import { discoverSite, normalizeUrl } from "./discovery.js";
-import { getSite, listSites, upsertSite } from "./storage.js";
-import type { PromptBundle, Site, SiteInput, WorkflowBundle } from "../shared/types.js";
+import { getSite, getUserSettings, listSites, upsertSite, upsertUserSettings } from "./storage.js";
+import type { PromptBundle, Site, SiteInput, UserSettings, WorkflowBundle } from "../shared/types.js";
 
 const app = express();
 const port = Number(process.env.PORT ?? 8787);
@@ -28,9 +29,28 @@ app.get("/api/health", (_request, response) => {
   response.json({ ok: true, service: "new-site-onboarding-dashboard", timestamp: new Date().toISOString() });
 });
 
-app.get("/api/sites", async (_request, response, next) => {
+app.use("/api", authMiddleware);
+
+app.get("/api/user-settings", async (request, response, next) => {
   try {
-    response.json({ sites: await listSites() });
+    response.json({ settings: await getUserSettings(request.userId!) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.patch("/api/user-settings", async (request, response, next) => {
+  try {
+    const settings = userSettingsSchema.parse(request.body);
+    response.json({ settings: await upsertUserSettings(request.userId!, settings) });
+  } catch (error) {
+    next(error);
+  }
+});
+
+app.get("/api/sites", async (request, response, next) => {
+  try {
+    response.json({ sites: await listSites(request.userId!) });
   } catch (error) {
     next(error);
   }
@@ -40,8 +60,8 @@ app.post("/api/sites", async (request, response, next) => {
   try {
     const input = siteInputSchema.parse(request.body);
     const site = createSite(input);
-    await upsertSite(site);
-    response.status(201).json({ site });
+    const savedSite = await upsertSite(site, request.userId!);
+    response.status(201).json({ site: savedSite });
   } catch (error) {
     next(error);
   }
@@ -49,7 +69,7 @@ app.post("/api/sites", async (request, response, next) => {
 
 app.get("/api/sites/:siteId", async (request, response, next) => {
   try {
-    const site = await getSite(request.params.siteId);
+    const site = await getSite(request.params.siteId, request.userId!);
     if (!site) {
       response.status(404).json({ error: "Site not found" });
       return;
@@ -63,7 +83,7 @@ app.get("/api/sites/:siteId", async (request, response, next) => {
 
 app.post("/api/sites/:siteId/discover", async (request, response, next) => {
   try {
-    const site = await getSite(request.params.siteId);
+    const site = await getSite(request.params.siteId, request.userId!);
     if (!site) {
       response.status(404).json({ error: "Site not found" });
       return;
@@ -79,8 +99,8 @@ app.post("/api/sites/:siteId/discover", async (request, response, next) => {
       siteType: request.body?.siteType ?? site.siteType
     });
     const discoveredSite = await discoverSite(input, { ...site, status: "discovery" });
-    await upsertSite(discoveredSite);
-    response.json({ site: discoveredSite });
+    const savedSite = await upsertSite(discoveredSite, request.userId!);
+    response.json({ site: savedSite });
   } catch (error) {
     next(error);
   }
@@ -88,15 +108,15 @@ app.post("/api/sites/:siteId/discover", async (request, response, next) => {
 
 app.post("/api/sites/:siteId/generate-artifacts", async (request, response, next) => {
   try {
-    const site = await getSite(request.params.siteId);
+    const site = await getSite(request.params.siteId, request.userId!);
     if (!site) {
       response.status(404).json({ error: "Site not found" });
       return;
     }
 
     const updated = generateArtifacts(site);
-    await upsertSite(updated);
-    response.json({ site: updated });
+    const savedSite = await upsertSite(updated, request.userId!);
+    response.json({ site: savedSite });
   } catch (error) {
     next(error);
   }
@@ -104,7 +124,7 @@ app.post("/api/sites/:siteId/generate-artifacts", async (request, response, next
 
 app.patch("/api/sites/:siteId", async (request, response, next) => {
   try {
-    const site = await getSite(request.params.siteId);
+    const site = await getSite(request.params.siteId, request.userId!);
     if (!site) {
       response.status(404).json({ error: "Site not found" });
       return;
@@ -119,8 +139,8 @@ app.patch("/api/sites/:siteId", async (request, response, next) => {
       },
       updatedAt: new Date().toISOString()
     };
-    await upsertSite(updated);
-    response.json({ site: updated });
+    const savedSite = await upsertSite(updated, request.userId!);
+    response.json({ site: savedSite });
   } catch (error) {
     next(error);
   }
@@ -195,6 +215,16 @@ function createSite(input: SiteInput): Site {
     chatHistory: []
   };
 }
+
+const userSettingsSchema = z
+  .object({
+    theme: z.enum(["light", "dark", "system"]).optional(),
+    ahrefsApiKeyEncrypted: z.string().nullable().optional(),
+    dataforseoLoginEncrypted: z.string().nullable().optional(),
+    llmProviderKeyEncrypted: z.string().nullable().optional(),
+    githubTokenEncrypted: z.string().nullable().optional()
+  })
+  .strict() satisfies z.ZodType<Partial<UserSettings>>;
 
 function emptyPrompts(): PromptBundle {
   return {

@@ -10,6 +10,7 @@ import {
   Github,
   Globe2,
   Lock,
+  LogOut,
   Palette,
   Play,
   RefreshCw,
@@ -23,7 +24,10 @@ import {
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import type { ReactNode } from "react";
+import { useNavigate } from "react-router-dom";
 import { createSite, fetchSites, generateArtifacts, runDiscovery, updateSite } from "./api";
+import { ThemeToggle } from "./components/ThemeToggle";
+import { useAuth } from "./contexts/AuthContext";
 import type { ChecklistItem, PromptBundle, Site, SiteInput, SiteStatus, StyleProfile } from "../shared/types";
 
 const stages: Array<{ id: SiteStatus | "chat" | "github"; label: string; icon: typeof Globe2 }> = [
@@ -48,6 +52,8 @@ const emptyInput: SiteInput = {
 };
 
 export default function App() {
+  const navigate = useNavigate();
+  const { signOut, user } = useAuth();
   const [sites, setSites] = useState<Site[]>([]);
   const [activeSiteId, setActiveSiteId] = useState<string>("");
   const [activeStage, setActiveStage] = useState<string>("input");
@@ -69,6 +75,11 @@ export default function App() {
   }, []);
 
   const activeSite = useMemo(() => sites.find((site) => site.id === activeSiteId), [activeSiteId, sites]);
+
+  async function handleSignOut() {
+    await signOut();
+    navigate("/login");
+  }
 
   function replaceSite(site: Site) {
     setSites((current) => [site, ...current.filter((item) => item.id !== site.id)].sort((a, b) => b.updatedAt.localeCompare(a.updatedAt)));
@@ -122,28 +133,32 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen text-ink">
-      <header className="sticky top-0 z-20 border-b border-line/80 bg-white/90 backdrop-blur">
+    <div className="min-h-screen bg-paper text-ink">
+      <header className="sticky top-0 z-20 border-b border-line bg-surface backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-md bg-ink text-sm font-black text-white">NS</div>
+            <div className="grid h-10 w-10 place-items-center rounded-md bg-ink text-sm font-black text-paper">NS</div>
             <div>
               <h1 className="text-lg font-black tracking-normal">New Site Onboarding Dashboard</h1>
-              <p className="text-sm text-slate">Automated n8n blog pipeline setup</p>
+              <p className="text-sm text-slate">{user?.email ?? "Automated n8n blog pipeline setup"}</p>
             </div>
           </div>
-          <button
-            className="inline-flex h-10 items-center gap-2 rounded-md border border-line bg-white px-3 text-sm font-bold text-ink shadow-sm hover:border-primary hover:text-primary"
-            onClick={() => setSettingsOpen((value) => !value)}
-          >
-            <Settings size={17} />
-            Settings
-          </button>
+          <div className="flex flex-wrap items-center justify-end gap-2">
+            <ThemeToggle />
+            <button className="btn-secondary" onClick={() => setSettingsOpen((value) => !value)}>
+              <Settings size={17} />
+              Settings
+            </button>
+            <button className="btn-secondary" onClick={() => void handleSignOut()}>
+              <LogOut size={17} />
+              Logout
+            </button>
+          </div>
         </div>
       </header>
 
       <main className="mx-auto grid max-w-[1500px] grid-cols-[290px_minmax(0,1fr)] gap-5 px-5 py-5 max-lg:grid-cols-1">
-        <aside className="h-fit rounded-md border border-line bg-white p-4 shadow-panel">
+        <aside className="h-fit rounded-md border border-line bg-surface p-4 shadow-panel">
           <button
             className="mb-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-blue-800"
             onClick={() => {
@@ -166,7 +181,7 @@ export default function App() {
                   key={stage.id}
                   className={[
                     "flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition",
-                    selected ? "border-primary bg-blue-50 text-primary" : "border-transparent text-slate hover:border-line hover:bg-paper",
+                    selected ? "border-primary bg-primary/10 text-primary" : "border-transparent text-slate hover:border-line hover:bg-paper",
                     unlocked ? "" : "cursor-not-allowed opacity-45"
                   ].join(" ")}
                   disabled={!unlocked}
@@ -193,7 +208,7 @@ export default function App() {
                     key={site.id}
                     className={[
                       "w-full rounded-md border p-3 text-left transition",
-                      activeSiteId === site.id ? "border-primary bg-blue-50" : "border-line bg-white hover:border-primary"
+                      activeSiteId === site.id ? "border-primary bg-primary/10" : "border-line bg-surface hover:border-primary"
                     ].join(" ")}
                     onClick={() => {
                       setActiveSiteId(site.id);
@@ -213,13 +228,13 @@ export default function App() {
         <section className="min-w-0">
           {settingsOpen ? <SettingsPanel /> : null}
           {error ? (
-            <div className="mb-4 flex items-center gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700">
+            <div className="mb-4 flex items-center gap-2 rounded-md border border-red-200 bg-red-50 p-3 text-sm font-bold text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200">
               <XCircle size={18} />
               {error}
             </div>
           ) : null}
           {loading ? (
-            <div className="mb-4 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm font-bold text-blue-800">
+            <div className="mb-4 flex items-center gap-2 rounded-md border border-blue-200 bg-blue-50 p-3 text-sm font-bold text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200">
               <RefreshCw size={18} className="animate-spin" />
               {loading}
             </div>
@@ -256,7 +271,7 @@ function InputPanel({
   const canSubmit = form.url && form.googleSheetsUrl && form.webhookUrl;
 
   return (
-    <div className="rounded-md border border-line bg-white p-6 shadow-shell">
+    <div className="rounded-md border border-line bg-surface p-6 shadow-shell">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
           <h2 className="text-2xl font-black">Create New Site</h2>
@@ -361,7 +376,7 @@ function Workspace({
 }) {
   return (
     <div className="space-y-5">
-      <div className="rounded-md border border-line bg-white p-5 shadow-panel">
+      <div className="rounded-md border border-line bg-surface p-5 shadow-panel">
         <div className="flex flex-wrap items-start justify-between gap-4">
           <div>
             <h2 className="text-2xl font-black">{site.name}</h2>
@@ -482,7 +497,7 @@ function KeywordPanel({ site }: { site: Site }) {
   return (
     <Panel title="Keyword Research" icon={Database}>
       <div className="overflow-hidden rounded-md border border-line">
-        <table className="w-full min-w-[780px] border-collapse bg-white text-sm">
+        <table className="w-full min-w-[780px] border-collapse bg-surface text-sm">
           <thead className="bg-ink text-left text-white">
             <tr>
               <th className="p-3">Keyword</th>
@@ -770,7 +785,7 @@ function ChatPanel({
               site.chatHistory.map((item) => (
                 <div key={item.id} className={item.role === "user" ? "chat-user" : "chat-assistant"}>
                   <p className="text-sm font-bold">{item.content}</p>
-                  {item.templateDiff ? <p className="mt-2 rounded-sm bg-white p-2 text-xs text-slate">{item.templateDiff}</p> : null}
+                  {item.templateDiff ? <p className="mt-2 rounded-sm bg-surface p-2 text-xs text-slate">{item.templateDiff}</p> : null}
                 </div>
               ))
             )}
@@ -810,7 +825,7 @@ function IntegrationPanel({ site, kind }: { site: Site; kind: "github" | "deploy
           </div>
         ))}
       </div>
-      <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800">
+      <div className="mt-5 rounded-md border border-amber-200 bg-amber-50 p-4 text-sm font-bold text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100">
         {isGithub
           ? "Remote GitHub writes are intentionally gated behind a token connection."
           : "Deploy to n8n stays disabled until all pre-deployment checks pass and n8n API credentials are configured."}
@@ -821,7 +836,7 @@ function IntegrationPanel({ site, kind }: { site: Site; kind: "github" | "deploy
 
 function SettingsPanel() {
   return (
-    <div className="mb-5 rounded-md border border-line bg-white p-5 shadow-panel">
+    <div className="mb-5 rounded-md border border-line bg-surface p-5 shadow-panel">
       <div className="mb-4 flex items-center gap-2">
         <Settings size={18} />
         <h2 className="text-lg font-black">Settings</h2>
@@ -851,7 +866,7 @@ function Field({ label, required, children }: { label: string; required?: boolea
 
 function Panel({ title, icon: Icon, children }: { title: string; icon: typeof Globe2; children: ReactNode }) {
   return (
-    <section className="rounded-md border border-line bg-white p-5 shadow-panel">
+    <section className="rounded-md border border-line bg-surface p-5 shadow-panel">
       <div className="mb-4 flex items-center gap-2">
         <Icon size={18} className="text-primary" />
         <h3 className="text-lg font-black">{title}</h3>

@@ -147,3 +147,13 @@ export interface Site {
 export interface AppState {
   sites: Site[];
 }
+
+export type ThemeMode = "light" | "dark" | "system";
+
+export interface UserSettings {
+  theme: ThemeMode;
+  ahrefsApiKeyEncrypted?: string | null;
+  dataforseoLoginEncrypted?: string | null;
+  llmProviderKeyEncrypted?: string | null;
+  githubTokenEncrypted?: string | null;
+}
