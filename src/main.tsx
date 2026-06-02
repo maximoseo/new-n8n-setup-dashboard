@@ -7,6 +7,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import { ThemeProvider } from "./contexts/ThemeContext";
 import "./index.css";
 import { AuthCallback } from "./pages/AuthCallback";
+import ClonerWizard from "./pages/ClonerWizard";
 import { ForgotPasswordPage } from "./pages/ForgotPasswordPage";
 import { LoginPage } from "./pages/LoginPage";
 import { ResetPasswordPage } from "./pages/ResetPasswordPage";
@@ -23,6 +24,14 @@ ReactDOM.createRoot(document.getElementById("root")!).render(
             <Route path="/forgot-password" element={<ForgotPasswordPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/auth/callback" element={<AuthCallback />} />
+            <Route
+              path="/cloner"
+              element={
+                <AuthGuard>
+                  <ClonerWizard />
+                </AuthGuard>
+              }
+            />
             <Route
               path="/*"
               element={

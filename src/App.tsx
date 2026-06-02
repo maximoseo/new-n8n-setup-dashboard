@@ -3,6 +3,7 @@ import {
   CheckCircle2,
   Clipboard,
   Code2,
+  Copy,
   Database,
   Download,
   Eye,
@@ -169,6 +170,14 @@ export default function App() {
           >
             <Globe2 size={17} />
             Create New Site
+          </button>
+
+          <button
+            className="mb-4 inline-flex w-full items-center justify-center gap-2 rounded-md border border-line bg-surface px-4 py-3 text-sm font-black text-ink shadow-sm transition hover:border-primary hover:text-primary"
+            onClick={() => navigate("/cloner")}
+          >
+            <Copy size={17} />
+            Workflow Cloner
           </button>
 
           <div className="mb-5 space-y-2">
