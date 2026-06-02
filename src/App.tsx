@@ -138,6 +138,7 @@ export default function App() {
       <header className="sticky top-0 z-20 border-b border-line bg-surface backdrop-blur">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between px-5 py-4">
           <div className="flex items-center gap-3">
+            <a href="https://dashboards-panel.maximo-seo.ai/" className="text-sm font-bold text-primary underline">← Dashboards</a>
             <div className="grid h-10 w-10 place-items-center rounded-md bg-ink text-sm font-black text-paper">NS</div>
             <div>
               <h1 className="text-lg font-black tracking-normal">New Site Onboarding Dashboard</h1>
@@ -145,6 +146,7 @@ export default function App() {
             </div>
           </div>
           <div className="flex flex-wrap items-center justify-end gap-2">
+            <a href="https://maximo-seo.ai/" className="text-sm font-bold text-primary underline">MaximoSEO</a>
             <ThemeToggle />
             <button className="btn-secondary" onClick={() => setSettingsOpen((value) => !value)}>
               <Settings size={17} />

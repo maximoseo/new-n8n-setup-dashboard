@@ -5,7 +5,11 @@ import { ThemeToggle } from "../components/ThemeToggle";
 export function AuthShell({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
     <div className="grid min-h-screen place-items-center bg-paper px-4 py-10 text-ink">
-      <div className="absolute right-5 top-5">
+      <div className="absolute left-5 top-5">
+        <a href="https://dashboards-panel.maximo-seo.ai/" className="text-sm font-bold text-primary underline">← Dashboards</a>
+      </div>
+      <div className="absolute right-5 top-5 flex items-center gap-3">
+        <a href="https://maximo-seo.ai/" className="text-sm font-bold text-primary underline">MaximoSEO</a>
         <ThemeToggle />
       </div>
       <div className="w-full max-w-[440px] rounded-md border border-line bg-surface p-6 shadow-shell">
