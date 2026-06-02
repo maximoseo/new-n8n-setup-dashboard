@@ -1,6 +1,8 @@
 import type {
   ClonePreview,
   CloneResult,
+  ClonerJob,
+  ClonerJobSummary,
   N8nWorkflow,
   N8nWorkflowSummary,
   Site,
@@ -177,4 +179,15 @@ export function clonerClone(sessionId: string, sourceWorkflowId: string, mapping
     headers: clonerHeaders(sessionId),
     body: JSON.stringify({ sourceWorkflowId, mapping, options })
   });
+}
+
+/** List the signed-in user's clone history (no n8n session required — uses the Supabase token). */
+export function clonerListJobs(limit?: number) {
+  const query = limit ? `?limit=${limit}` : "";
+  return request<{ ok: boolean; jobs: ClonerJobSummary[] }>(`/api/cloner/jobs${query}`);
+}
+
+/** Fetch the full detail of a single past clone job. */
+export function clonerGetJob(id: string) {
+  return request<{ ok: boolean; job: ClonerJob }>(`/api/cloner/jobs/${encodeURIComponent(id)}`);
 }

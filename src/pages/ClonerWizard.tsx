@@ -3,6 +3,7 @@ import {
   ArrowLeft,
   ArrowRight,
   CheckCircle2,
+  Clock,
   Code2,
   Copy,
   Database,
@@ -10,6 +11,7 @@ import {
   Eye,
   FileSpreadsheet,
   Globe2,
+  History,
   Home,
   KeyRound,
   Link2,
@@ -20,15 +22,17 @@ import {
   Search,
   Table2,
   Upload,
+  X,
   XCircle
 } from "lucide-react";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { ChangeEvent, DragEvent, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   clonerClone,
   clonerConnect,
   clonerGetWorkflow,
+  clonerListJobs,
   clonerListWorkflows,
   clonerPreview,
   clonerUploadExcel
@@ -38,6 +42,8 @@ import { ThemeToggle } from "../components/ThemeToggle";
 import type {
   ClonePreview,
   CloneResult,
+  ClonerJobStatus,
+  ClonerJobSummary,
   CredentialRefInfo,
   N8nWorkflowSummary,
   SheetTabMapping,
@@ -120,7 +126,22 @@ export default function ClonerWizard() {
   const [preview, setPreview] = useState<ClonePreview | null>(null);
   const [result, setResult] = useState<CloneResult | null>(null);
 
+  // Confirmation dialog, transient toast, and clone-history panel
+  const [confirmClone, setConfirmClone] = useState(false);
+  const [toast, setToast] = useState<{ tone: "success" | "error"; message: string } | null>(null);
+  const [jobs, setJobs] = useState<ClonerJobSummary[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const [historyBusy, setHistoryBusy] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
+
   const connected = Boolean(sessionId);
+
+  // Auto-dismiss the toast after a few seconds.
+  useEffect(() => {
+    if (!toast) return;
+    const timer = window.setTimeout(() => setToast(null), 6000);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   // Source Google Sheet tabs referenced by the selected workflow (name + numeric gid).
   const sourceTabs = useMemo(() => {
@@ -369,6 +390,30 @@ export default function ClonerWizard() {
     }
   }
 
+  async function loadJobs() {
+    setHistoryBusy(true);
+    try {
+      const response = await clonerListJobs(50);
+      setJobs(response.jobs);
+      setHistoryLoaded(true);
+    } catch (err) {
+      fail(err);
+    } finally {
+      setHistoryBusy(false);
+    }
+  }
+
+  function toggleHistory() {
+    const next = !historyOpen;
+    setHistoryOpen(next);
+    if (next && !historyLoaded) void loadJobs();
+  }
+
+  async function confirmAndClone() {
+    setConfirmClone(false);
+    await handleClone();
+  }
+
   async function handleClone() {
     setError("");
     setBusy("משכפל את הוורקפלואו — יוצר גיליון, אישורים ומפעיל…");
@@ -381,8 +426,17 @@ export default function ClonerWizard() {
       };
       const response = await clonerClone(sessionId, selectedWorkflowId, buildMapping(), options);
       setResult(response);
+      const ok = response.ok && Boolean(response.workflow);
+      setToast({
+        tone: ok ? "success" : "error",
+        message: ok ? "הוורקפלואו שוכפל בהצלחה" : "השכפול הסתיים עם שגיאות — בדוק את התוצאות"
+      });
+      // Refresh history so the new clone appears immediately.
+      setHistoryLoaded(false);
+      if (historyOpen) void loadJobs();
     } catch (err) {
       fail(err);
+      setToast({ tone: "error", message: err instanceof Error ? err.message : "השכפול נכשל" });
     } finally {
       setBusy("");
     }
@@ -456,7 +510,7 @@ export default function ClonerWizard() {
         <Stepper current={step} />
 
         {error ? (
-          <Banner tone="error">
+          <Banner tone="error" onClose={() => setError("")}>
             <XCircle size={18} />
             {error}
           </Banner>
@@ -476,6 +530,19 @@ export default function ClonerWizard() {
           {step === 5 ? renderResults() : null}
         </section>
       </main>
+
+      {toast ? <Toast tone={toast.tone} message={toast.message} onClose={() => setToast(null)} /> : null}
+
+      {confirmClone ? (
+        <ConfirmDialog
+          busy={Boolean(busy)}
+          workflowName={preview?.workflowName || analysis?.workflowName || ""}
+          newDomain={cleanDomain(newDomain)}
+          activate={activate}
+          onCancel={() => setConfirmClone(false)}
+          onConfirm={() => void confirmAndClone()}
+        />
+      ) : null}
     </div>
   );
 
@@ -483,6 +550,7 @@ export default function ClonerWizard() {
   function renderConnect() {
     const minutes = expiresInMs ? Math.round(expiresInMs / 60000) : 30;
     return (
+      <>
       <Card icon={Link2} title="שלב 1: חיבור לחשבון n8n">
         <div className="grid gap-4">
           <Field label="כתובת Instance" required>
@@ -511,7 +579,7 @@ export default function ClonerWizard() {
           </p>
           <div>
             <button className="btn-primary" disabled={Boolean(busy)} onClick={() => void handleConnect()}>
-              <PlugZap size={17} />
+              {busy ? <Loader2 size={17} className="animate-spin" /> : <PlugZap size={17} />}
               בדוק חיבור
             </button>
           </div>
@@ -534,6 +602,15 @@ export default function ClonerWizard() {
           nextLabel="הבא"
         />
       </Card>
+
+      <HistoryPanel
+        open={historyOpen}
+        busy={historyBusy}
+        jobs={jobs}
+        onToggle={toggleHistory}
+        onRefresh={() => void loadJobs()}
+      />
+      </>
     );
   }
 
@@ -858,6 +935,7 @@ export default function ClonerWizard() {
           onBack={() => setStep(3)}
           onNext={() => void handlePreview()}
           nextDisabled={!canAdvanceFrom[4] || Boolean(busy)}
+          nextLoading={Boolean(busy)}
           nextLabel="תצוגה מקדימה"
           nextIcon={Eye}
         />
@@ -912,8 +990,9 @@ export default function ClonerWizard() {
             setPreview(null);
             setStep(4);
           }}
-          onNext={() => void handleClone()}
+          onNext={() => setConfirmClone(true)}
           nextDisabled={Boolean(busy)}
+          nextLoading={Boolean(busy)}
           nextLabel="שכפל וורקפלואו"
           nextIcon={Copy}
         />
@@ -1079,12 +1158,26 @@ function Field({ label, required, children }: { label: string; required?: boolea
   );
 }
 
-function Banner({ tone, children }: { tone: "error" | "info"; children: ReactNode }) {
+function Banner({ tone, children, onClose }: { tone: "error" | "info"; children: ReactNode; onClose?: () => void }) {
   const tones = {
     error: "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200",
     info: "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200"
   };
-  return <div className={`mt-4 flex items-center gap-2 rounded-md border p-3 text-sm font-bold ${tones[tone]}`}>{children}</div>;
+  return (
+    <div className={`mt-4 flex items-center gap-2 rounded-md border p-3 text-sm font-bold ${tones[tone]}`}>
+      <span className="flex flex-1 items-center gap-2">{children}</span>
+      {onClose ? (
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="סגור"
+          className="shrink-0 rounded-sm p-1 transition hover:bg-black/5 dark:hover:bg-white/10"
+        >
+          <X size={16} />
+        </button>
+      ) : null}
+    </div>
+  );
 }
 
 function TestMessage({ result }: { result: { ok: boolean; message: string } }) {
@@ -1148,12 +1241,14 @@ function WizardFooter({
   onBack,
   onNext,
   nextDisabled,
+  nextLoading,
   nextLabel = "הבא",
   nextIcon: NextIcon = ArrowLeft
 }: {
   onBack?: () => void;
   onNext?: () => void;
   nextDisabled?: boolean;
+  nextLoading?: boolean;
   nextLabel?: string;
   nextIcon?: typeof ArrowLeft;
 }) {
@@ -1170,7 +1265,7 @@ function WizardFooter({
       {onNext ? (
         <button className="btn-primary" onClick={onNext} disabled={nextDisabled}>
           {nextLabel}
-          <NextIcon size={16} />
+          {nextLoading ? <Loader2 size={16} className="animate-spin" /> : <NextIcon size={16} />}
         </button>
       ) : (
         <span />
@@ -1261,6 +1356,197 @@ function AnalysisGroup({ icon: Icon, title, items }: { icon: typeof Globe2; titl
             </li>
           ))}
         </ul>
+      ) : null}
+    </div>
+  );
+}
+
+// ---- Toast, confirmation dialog, and clone history -------------------------
+
+function Toast({ tone, message, onClose }: { tone: "success" | "error"; message: string; onClose: () => void }) {
+  const tones = {
+    success: "border-green-300 bg-green-50 text-green-800 dark:border-green-900 dark:bg-green-950/60 dark:text-green-100",
+    error: "border-red-300 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/60 dark:text-red-100"
+  };
+  return (
+    <div dir="rtl" className="fixed inset-x-0 bottom-5 z-50 flex justify-center px-4">
+      <div className={`flex items-center gap-2 rounded-md border px-4 py-3 text-sm font-black shadow-panel ${tones[tone]}`}>
+        {tone === "success" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
+        <span>{message}</span>
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="סגור"
+          className="ms-2 rounded-sm p-1 transition hover:bg-black/5 dark:hover:bg-white/10"
+        >
+          <X size={15} />
+        </button>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmDialog({
+  busy,
+  workflowName,
+  newDomain,
+  activate,
+  onCancel,
+  onConfirm
+}: {
+  busy: boolean;
+  workflowName: string;
+  newDomain: string;
+  activate: boolean;
+  onCancel: () => void;
+  onConfirm: () => void;
+}) {
+  return (
+    <div dir="rtl" className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true">
+      <div className="w-full max-w-md rounded-md border border-line bg-surface p-6 shadow-panel">
+        <div className="mb-3 flex items-center gap-2">
+          <AlertTriangle size={20} className="text-amber-500" />
+          <h2 className="text-lg font-black">אישור ביצוע שכפול</h2>
+        </div>
+        <p className="text-sm text-slate">
+          הפעולה תיצור גיליון Google חדש, אישורים ו-Workflow חדש ב-n8n
+          {activate ? " ותפעיל אותו אוטומטית" : ""}. ודא/י שכל הפרטים נכונים לפני ההמשך.
+        </p>
+        <div className="mt-3 space-y-1 rounded-md border border-line bg-paper p-3 text-sm">
+          <p>
+            <span className="font-bold text-slate">וורקפלואו: </span>
+            <span className="font-black">{workflowName || "—"}</span>
+          </p>
+          <p dir="ltr" className="text-start">
+            <span className="font-bold text-slate">דומיין חדש: </span>
+            <span className="font-black">{newDomain || "—"}</span>
+          </p>
+        </div>
+        <div className="mt-5 flex items-center justify-end gap-2">
+          <button className="btn-secondary" onClick={onCancel} disabled={busy}>
+            ביטול
+          </button>
+          <button className="btn-primary" onClick={onConfirm} disabled={busy}>
+            {busy ? <Loader2 size={16} className="animate-spin" /> : <Copy size={16} />}
+            כן, בצע שכפול
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+const STATUS_META: Record<ClonerJobStatus, { label: string; className: string }> = {
+  pending: { label: "ממתין", className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" },
+  connecting: { label: "מתחבר", className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" },
+  uploading: { label: "מעלה", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200" },
+  cloning: { label: "משכפל", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200" },
+  done: { label: "הושלם", className: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200" },
+  failed: { label: "נכשל", className: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200" }
+};
+
+function StatusBadge({ status }: { status: ClonerJobStatus }) {
+  const meta = STATUS_META[status] ?? STATUS_META.pending;
+  return <span className={`rounded-sm px-2 py-0.5 text-[11px] font-black ${meta.className}`}>{meta.label}</span>;
+}
+
+function formatJobDate(iso: string): string {
+  const date = new Date(iso);
+  if (Number.isNaN(date.getTime())) return iso;
+  return date.toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" });
+}
+
+function HistoryPanel({
+  open,
+  busy,
+  jobs,
+  onToggle,
+  onRefresh
+}: {
+  open: boolean;
+  busy: boolean;
+  jobs: ClonerJobSummary[];
+  onToggle: () => void;
+  onRefresh: () => void;
+}) {
+  return (
+    <div className="mt-4 rounded-md border border-line bg-surface shadow-panel">
+      <div className="flex items-center justify-between gap-2 p-4">
+        <button type="button" onClick={onToggle} className="flex items-center gap-2 text-start">
+          <History size={18} className="text-primary" />
+          <span className="text-sm font-black">היסטוריית שכפולים אחרונים</span>
+          {jobs.length ? (
+            <span className="rounded-sm bg-paper px-2 py-0.5 text-xs font-bold text-slate">{jobs.length}</span>
+          ) : null}
+        </button>
+        {open ? (
+          <button type="button" className="btn-secondary h-8 px-2 text-xs" onClick={onRefresh} disabled={busy}>
+            {busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
+            רענן
+          </button>
+        ) : null}
+      </div>
+
+      {open ? (
+        <div className="border-t border-line p-4">
+          {busy && jobs.length === 0 ? (
+            <p className="flex items-center gap-2 text-sm text-slate">
+              <Loader2 size={16} className="animate-spin" />
+              טוען היסטוריה…
+            </p>
+          ) : jobs.length === 0 ? (
+            <p className="text-sm text-slate">אין עדיין שכפולים. השכפול הראשון יופיע כאן.</p>
+          ) : (
+            <ul className="space-y-2">
+              {jobs.map((job) => (
+                <li key={job.id} className="rounded-md border border-line bg-paper p-3">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <span className="flex min-w-0 items-center gap-2">
+                      <StatusBadge status={job.status} />
+                      <span className="truncate text-sm font-black">{job.sourceWorkflowName || "(ללא שם)"}</span>
+                    </span>
+                    <span className="flex items-center gap-1 text-xs text-slate">
+                      <Clock size={12} />
+                      {formatJobDate(job.createdAt)}
+                    </span>
+                  </div>
+                  <p dir="ltr" className="mt-1 truncate text-start text-xs text-slate" title={job.newDomain}>
+                    {job.newDomain || "—"}
+                  </p>
+                  {job.errorMessage ? (
+                    <p className="mt-1 break-all text-xs font-bold text-red-600 dark:text-red-300">{job.errorMessage}</p>
+                  ) : null}
+                  {job.sheetUrl || job.newSiteUrl ? (
+                    <div className="mt-2 flex flex-wrap gap-3 text-xs font-bold">
+                      {job.sheetUrl ? (
+                        <a
+                          className="inline-flex items-center gap-1 text-primary underline"
+                          href={job.sheetUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <Table2 size={12} />
+                          גיליון
+                        </a>
+                      ) : null}
+                      {job.newSiteUrl ? (
+                        <a
+                          className="inline-flex items-center gap-1 text-primary underline"
+                          href={job.newSiteUrl}
+                          target="_blank"
+                          rel="noreferrer"
+                        >
+                          <Globe2 size={12} />
+                          אתר
+                        </a>
+                      ) : null}
+                    </div>
+                  ) : null}
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
       ) : null}
     </div>
   );

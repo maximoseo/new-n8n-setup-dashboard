@@ -8,10 +8,8 @@
     "esModuleInterop": true,
     "skipLibCheck": true,
     "forceConsistentCasingInFileNames": true,
-    "outDir": "dist-server",
-    "rootDir": ".",
+    "noEmit": true,
     "types": ["node"]
   },
-  "include": ["server", "shared"],
-  "exclude": ["server/**/__tests__"]
+  "include": ["server", "shared"]
 }

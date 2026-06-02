@@ -418,3 +418,57 @@ export interface CloneResult {
   changes: NodeChange[];
   summary: CloneChangeSummary;
 }
+
+// ============================================================================
+// Cloner job persistence (Phase 4)
+// ============================================================================
+
+/** Lifecycle status of a clone job — mirrors the cloner_jobs.status check constraint. */
+export type ClonerJobStatus = "pending" | "connecting" | "uploading" | "cloning" | "done" | "failed";
+
+/** A persisted clone run, stored per-user in the cloner_jobs table. */
+export interface ClonerJob {
+  id: string;
+  userId: string;
+  sourceWorkflowId: string;
+  sourceWorkflowName: string;
+  newDomain: string;
+  newSiteUrl: string;
+  wpUsername: string;
+  sheetId: string;
+  sheetUrl: string;
+  status: ClonerJobStatus;
+  /** The SiteMapping used for the clone, with plaintext secrets stripped before storage. */
+  mapping: SiteMapping;
+  changes: NodeChange[];
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** Condensed job for the history list — omits the heavy mapping/changes payloads. */
+export interface ClonerJobSummary {
+  id: string;
+  sourceWorkflowId: string;
+  sourceWorkflowName: string;
+  newDomain: string;
+  newSiteUrl: string;
+  wpUsername: string;
+  sheetId: string;
+  sheetUrl: string;
+  status: ClonerJobStatus;
+  errorMessage: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+/** A persisted Excel upload tied to a clone job (cloner_excel_uploads). */
+export interface ClonerExcelUpload {
+  id: string;
+  jobId: string;
+  fileName: string;
+  sheetCount: number;
+  totalRows: number;
+  parsedData: ParsedExcel;
+  createdAt: string;
+}
