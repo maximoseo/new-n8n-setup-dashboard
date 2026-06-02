@@ -2,8 +2,10 @@ import {
   AlertTriangle,
   ArrowLeft,
   ArrowRight,
+  Check,
   CheckCircle2,
   Clock,
+  CloudUpload,
   Code2,
   Copy,
   Database,
@@ -17,17 +19,22 @@ import {
   KeyRound,
   Link2,
   Loader2,
+  Lock,
   Mail,
   PlugZap,
   RefreshCw,
   Search,
+  Share2,
+  ShieldCheck,
+  Sparkles,
   Table2,
-  Upload,
+  User,
+  Workflow,
   X,
   XCircle
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { ChangeEvent, DragEvent, ReactNode } from "react";
+import type { ChangeEvent, DragEvent, InputHTMLAttributes, ReactNode } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   clonerClone,
@@ -63,6 +70,9 @@ const STEPS = [
 const DEFAULT_INSTANCE_URL = "https://websiseo.app.n8n.cloud/";
 const NEW_TAB = "__new__";
 const SKIP_TAB = "__skip__";
+
+const URL_RE = /^https?:\/\/.+\..+/i;
+const EMAIL_RE = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 /** Strip protocol + trailing slash: "https://www.dtapet.com/" -> "www.dtapet.com". */
 function cleanDomain(value: string): string {
@@ -443,6 +453,29 @@ export default function ClonerWizard() {
     }
   }
 
+  // Copy a value to the clipboard with a transient toast (visual-only, no API call).
+  async function copyText(text: string, label: string) {
+    try {
+      await navigator.clipboard.writeText(text);
+      setToast({ tone: "success", message: `${label} copied to clipboard` });
+    } catch {
+      setToast({ tone: "error", message: "Could not copy — please copy manually" });
+    }
+  }
+
+  // Share a URL via the native share sheet, falling back to clipboard copy.
+  async function shareUrl(url: string) {
+    if (typeof navigator.share === "function") {
+      try {
+        await navigator.share({ title: "n8n Workflow Clone", url });
+      } catch {
+        /* user dismissed the native share sheet */
+      }
+      return;
+    }
+    await copyText(url, "Link");
+  }
+
   function resetForAnother() {
     setSelectedWorkflowId("");
     setAnalysis(null);
@@ -485,21 +518,36 @@ export default function ClonerWizard() {
   };
 
   return (
-    <div dir="ltr" className="min-h-screen bg-paper text-ink antialiased">
-      <header className="sticky top-0 z-20 border-b border-line bg-surface backdrop-blur">
-        <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-4 py-4 sm:px-6">
+    <div dir="ltr" className="relative min-h-screen bg-paper text-ink antialiased">
+      {/* Subtle dotted texture behind everything, faded toward the bottom. */}
+      <div
+        aria-hidden="true"
+        className="pointer-events-none fixed inset-0 bg-dotgrid opacity-70 [mask-image:radial-gradient(ellipse_at_top,black,transparent_72%)]"
+      />
+
+      <header className="sticky top-0 z-30 border-b border-white/10 bg-gradient-to-r from-blue-600/95 to-indigo-700/95 shadow-lg shadow-blue-900/20 backdrop-blur-md">
+        <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-lg bg-ink text-sm font-black text-paper">
-              <Copy size={18} />
+            <div className="relative grid h-11 w-11 place-items-center rounded-xl bg-white/15 shadow-inner ring-1 ring-white/25">
+              <Workflow size={20} className="text-white" />
+              <Sparkles size={11} className="absolute -right-0.5 -top-0.5 text-amber-300" />
             </div>
             <div>
-              <h1 className="text-base font-black sm:text-lg">n8n Workflow Cloner + Google Sheets</h1>
-              <p className="text-xs text-slate sm:text-sm">5-step wizard to clone automation workflows to a new site</p>
+              <h1 className="flex items-center gap-2 text-base font-black text-white sm:text-lg">
+                n8n Workflow Cloner
+                <span className="hidden rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white ring-1 ring-white/25 sm:inline">
+                  Google Sheets
+                </span>
+              </h1>
+              <p className="text-xs text-blue-100 sm:text-sm">5-step wizard to clone automation workflows to a new site</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
-            <button className="btn-secondary" onClick={() => navigate("/")}>
+            <button
+              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white/10 px-4 text-sm font-bold text-white ring-1 ring-white/25 backdrop-blur transition-all duration-200 hover:-translate-y-px hover:bg-white/20"
+              onClick={() => navigate("/")}
+            >
               <Home size={17} />
               <span className="max-sm:hidden">Dashboard</span>
             </button>
@@ -507,7 +555,7 @@ export default function ClonerWizard() {
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6 lg:px-8">
+      <main className="relative mx-auto max-w-[1200px] px-4 py-7 sm:px-6 lg:px-8">
         <Stepper current={step} />
 
         {error ? (
@@ -523,7 +571,7 @@ export default function ClonerWizard() {
           </Banner>
         ) : null}
 
-        <section className="mt-5">
+        <section key={step} className="mt-6 animate-fade-up">
           {step === 1 ? renderConnect() : null}
           {step === 2 ? renderSelect() : null}
           {step === 3 ? renderExcel() : null}
@@ -552,69 +600,68 @@ export default function ClonerWizard() {
     const minutes = expiresInMs ? Math.round(expiresInMs / 60000) : 30;
     return (
       <>
-      <Card
-        icon={Link2}
-        title="Step 1: Connect to n8n"
-        subtitle="Connect your n8n automation platform. You’ll need your API key from n8n Settings → API."
-      >
-        <div className="space-y-5">
-          <Field label="Instance URL" required helpText="Find this in your n8n browser URL bar.">
-            <input
-              className="input"
-              dir="ltr"
-              placeholder="https://your-instance.app.n8n.cloud/"
-              value={instanceUrl}
-              onChange={(event) => setInstanceUrl(event.target.value)}
-            />
-          </Field>
-          <Field label="API Key" required helpText="Generate from n8n → Settings → API → Create API Key.">
-            <input
-              className="input"
-              dir="ltr"
-              type="password"
-              autoComplete="off"
-              placeholder="n8n_api_…"
-              value={apiKey}
-              onChange={(event) => setApiKey(event.target.value)}
-            />
-          </Field>
-          <p className="flex items-center gap-2 text-xs font-bold text-slate">
-            <KeyRound size={14} className="shrink-0" />
-            Your API key is kept in memory only for this session and is never stored in the browser.
-          </p>
-          <div>
-            <button className="btn-primary" disabled={Boolean(busy)} onClick={() => void handleConnect()}>
-              {busy ? <Loader2 size={17} className="animate-spin" /> : <PlugZap size={17} />}
-              Connect
-            </button>
-          </div>
-
-          {connected ? (
-            <div className="rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950/40">
-              <p className="flex items-center gap-2 font-black text-green-700 dark:text-green-200">
-                <CheckCircle2 size={18} />
-                Connected! Found {workflowCount ?? workflows.length} workflow(s)
-              </p>
-              <p className="mt-1 text-sm font-bold text-green-700/80 dark:text-green-200/80">
-                ⏱️ Connection expires in ~{minutes} minutes
-              </p>
+        <Card
+          icon={Link2}
+          title="Step 1: Connect to n8n"
+          subtitle="Connect your n8n automation platform. You’ll need your API key from n8n Settings → API."
+        >
+          <div className="space-y-5">
+            <Field label="Instance URL" required helpText="Find this in your n8n browser URL bar.">
+              <TextInput
+                icon={Globe2}
+                dir="ltr"
+                placeholder="https://your-instance.app.n8n.cloud/"
+                value={instanceUrl}
+                valid={URL_RE.test(instanceUrl.trim())}
+                onChange={(event) => setInstanceUrl(event.target.value)}
+              />
+            </Field>
+            <Field label="API Key" required helpText="Generate from n8n → Settings → API → Create API Key.">
+              <TextInput
+                icon={KeyRound}
+                dir="ltr"
+                type="password"
+                autoComplete="off"
+                placeholder="n8n_api_…"
+                value={apiKey}
+                valid={apiKey.trim().length > 10}
+                onChange={(event) => setApiKey(event.target.value)}
+              />
+            </Field>
+            <p className="flex items-center gap-2 rounded-lg bg-paper/70 px-3 py-2 text-xs font-bold text-slate ring-1 ring-line">
+              <ShieldCheck size={15} className="shrink-0 text-emerald-500" />
+              Your API key is kept in memory only for this session and is never stored in the browser.
+            </p>
+            <div>
+              <button className="btn-primary" disabled={Boolean(busy)} onClick={() => void handleConnect()}>
+                {busy ? <Loader2 size={17} className="animate-spin" /> : <PlugZap size={17} />}
+                Connect
+              </button>
             </div>
-          ) : null}
-        </div>
-        <WizardFooter
-          onNext={() => setStep(2)}
-          nextDisabled={!canAdvanceFrom[1]}
-          nextLabel="Next"
-        />
-      </Card>
 
-      <HistoryPanel
-        open={historyOpen}
-        busy={historyBusy}
-        jobs={jobs}
-        onToggle={toggleHistory}
-        onRefresh={() => void loadJobs()}
-      />
+            {connected ? (
+              <div className="animate-pop-in rounded-xl border border-green-200 bg-gradient-to-br from-green-50 to-emerald-50 p-4 dark:border-green-900 dark:from-green-950/40 dark:to-emerald-950/30">
+                <p className="flex items-center gap-2 font-black text-green-700 dark:text-green-200">
+                  <CheckCircle2 size={18} />
+                  Connected! Found {workflowCount ?? workflows.length} workflow(s)
+                </p>
+                <p className="mt-1 flex items-center gap-1.5 text-sm font-bold text-green-700/80 dark:text-green-200/80">
+                  <Clock size={14} />
+                  Connection expires in ~{minutes} minutes
+                </p>
+              </div>
+            ) : null}
+          </div>
+          <WizardFooter onNext={() => setStep(2)} nextDisabled={!canAdvanceFrom[1]} nextLabel="Next" />
+        </Card>
+
+        <HistoryPanel
+          open={historyOpen}
+          busy={historyBusy}
+          jobs={jobs}
+          onToggle={toggleHistory}
+          onRefresh={() => void loadJobs()}
+        />
       </>
     );
   }
@@ -628,15 +675,12 @@ export default function ClonerWizard() {
         subtitle="Select the workflow template you want to clone. This workflow will be adapted for your new site."
       >
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_240px]">
-          <div className="relative">
-            <Search size={16} className="pointer-events-none absolute inset-y-0 start-3 my-auto text-slate" />
-            <input
-              className="input ps-9"
-              placeholder="Search by name or domain…"
-              value={search}
-              onChange={(event) => setSearch(event.target.value)}
-            />
-          </div>
+          <TextInput
+            icon={Search}
+            placeholder="Search by name or domain…"
+            value={search}
+            onChange={(event) => setSearch(event.target.value)}
+          />
           <select className="input" value={domainFilter} onChange={(event) => setDomainFilter(event.target.value)}>
             <option value="">All domains ({allDomains.length})</option>
             {allDomains.map((domain) => (
@@ -648,38 +692,20 @@ export default function ClonerWizard() {
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-          <div className="max-h-[520px] overflow-auto rounded-xl border border-line">
+          <div className="max-h-[520px] overflow-auto rounded-xl border border-line bg-surface">
             {filteredWorkflows.length === 0 ? (
-              <p className="p-4 text-sm text-slate">No matching workflows found.</p>
+              <p className="grid h-full min-h-[160px] place-items-center p-4 text-center text-sm text-slate">
+                No matching workflows found.
+              </p>
             ) : (
-              filteredWorkflows.map((workflow) => {
-                const selected = workflow.id === selectedWorkflowId;
-                return (
-                  <button
-                    key={workflow.id}
-                    onClick={() => void handleSelectWorkflow(workflow)}
-                    className={[
-                      "flex w-full items-center justify-between gap-3 border-b border-line px-4 py-3 text-start transition last:border-b-0",
-                      selected ? "border-l-4 border-l-primary bg-primary/10" : "hover:bg-paper"
-                    ].join(" ")}
-                  >
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-black">{workflow.name || "(unnamed)"}</span>
-                      <span className="mt-0.5 block truncate text-xs text-slate">
-                        {workflow.domains.length ? workflow.domains.join(", ") : "No domain detected"}
-                      </span>
-                    </span>
-                    <span className="flex shrink-0 items-center gap-2">
-                      <span className="rounded-md bg-paper px-2 py-1 text-xs font-bold text-slate">{workflow.nodeCount} nodes</span>
-                      {workflow.active ? (
-                        <CheckCircle2 size={16} className="text-green-600" />
-                      ) : (
-                        <span className="text-xs font-bold text-slate">Inactive</span>
-                      )}
-                    </span>
-                  </button>
-                );
-              })
+              filteredWorkflows.map((workflow) => (
+                <WorkflowCard
+                  key={workflow.id}
+                  workflow={workflow}
+                  selected={workflow.id === selectedWorkflowId}
+                  onSelect={() => void handleSelectWorkflow(workflow)}
+                />
+              ))
             )}
           </div>
 
@@ -687,24 +713,26 @@ export default function ClonerWizard() {
             {analysis ? (
               <AnalysisView analysis={analysis} />
             ) : (
-              <p className="grid h-full min-h-[200px] place-items-center text-center text-sm text-slate">
-                Select a workflow from the list to see a detailed node analysis.
-              </p>
+              <div className="grid h-full min-h-[200px] place-items-center px-6 text-center">
+                <div>
+                  <div className="mx-auto mb-3 grid h-12 w-12 place-items-center rounded-2xl bg-blue-50 text-blue-500 dark:bg-blue-950 dark:text-blue-300">
+                    <Database size={24} />
+                  </div>
+                  <p className="text-sm text-slate">Select a workflow from the list to see a detailed node analysis.</p>
+                </div>
+              </div>
             )}
           </div>
         </div>
 
-        <WizardFooter
-          onBack={() => setStep(1)}
-          onNext={() => setStep(3)}
-          nextDisabled={!canAdvanceFrom[2]}
-        />
+        <WizardFooter onBack={() => setStep(1)} onNext={() => setStep(3)} nextDisabled={!canAdvanceFrom[2]} />
       </Card>
     );
   }
 
   // ---- Step 3: Upload Excel ------------------------------------------------
   function renderExcel() {
+    const uploading = busy.toLowerCase().includes("uploading");
     return (
       <Card
         icon={FileSpreadsheet}
@@ -729,38 +757,64 @@ export default function ClonerWizard() {
           onDragLeave={() => setDragging(false)}
           onDrop={onDrop}
           className={[
-            "focus:outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950",
-            "grid cursor-pointer place-items-center gap-2 rounded-xl border-2 border-dashed p-12 text-center transition",
-            dragging ? "border-primary bg-primary/10 ring-4 ring-primary/10" : "border-line bg-paper hover:border-primary hover:bg-primary/5"
+            "group relative grid cursor-pointer place-items-center gap-3 overflow-hidden rounded-2xl border-2 border-dashed p-12 text-center transition-all duration-200",
+            "focus:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/25",
+            dragging
+              ? "scale-[1.01] border-blue-500 bg-blue-50 dark:border-blue-400 dark:bg-blue-950/40"
+              : "border-line bg-paper/50 hover:border-blue-400 hover:bg-blue-50/40 dark:hover:border-blue-700 dark:hover:bg-blue-950/20"
           ].join(" ")}
         >
-          <Upload size={40} className="text-primary" />
-          <p className="text-base font-black">Drag &amp; drop your .xlsx file here</p>
-          <p className="text-sm text-slate">or click to browse</p>
-          <p className="text-xs text-slate">Supports: .xlsx files up to 50MB</p>
+          <div
+            className={[
+              "grid h-16 w-16 place-items-center rounded-2xl bg-gradient-to-br from-blue-500 to-indigo-600 text-white shadow-lg shadow-blue-600/30 transition-transform duration-200",
+              dragging ? "animate-bounce" : "group-hover:scale-105"
+            ].join(" ")}
+          >
+            <CloudUpload size={30} />
+          </div>
+          <p className="text-base font-black">{dragging ? "Drop it here!" : "Drag & drop your .xlsx file here"}</p>
+          <p className="text-sm text-slate">
+            or <span className="font-bold text-blue-600 dark:text-blue-400">click to browse</span>
+          </p>
+          <p className="text-xs text-slate">Supports .xlsx files up to 50MB</p>
           <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={onFileInput} />
+
+          {uploading ? (
+            <div className="absolute inset-x-0 bottom-0 h-1 overflow-hidden bg-blue-100 dark:bg-blue-950">
+              <div className="animate-indeterminate rounded-full bg-gradient-to-r from-blue-500 to-indigo-500" />
+            </div>
+          ) : null}
         </div>
 
         {excelName ? (
-          <p className="mt-3 flex items-center gap-2 text-sm font-black text-green-700 dark:text-green-300">
-            <CheckCircle2 size={16} />
+          <div className="animate-pop-in mt-3 flex items-center gap-2 rounded-xl border border-green-200 bg-green-50 px-3 py-2.5 text-sm font-black text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-300">
+            <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full bg-green-500 text-white">
+              <Check size={14} />
+            </span>
             File uploaded: {excelName}
-          </p>
+          </div>
         ) : null}
 
         {uploadedSheets.length > 0 ? (
-          <div className="mt-4 space-y-3">
+          <div className="mt-5 space-y-3">
             <p className="text-sm font-black text-slate">Detected Sheets ({uploadedSheets.length})</p>
             {uploadedSheets.map((sheet) => {
               const rows = previewRows[sheet.name] ?? [];
               return (
-                <div key={sheet.name} className="rounded-xl border border-line bg-surface p-4">
+                <div
+                  key={sheet.name}
+                  className="rounded-xl border border-line bg-surface p-4 transition-colors hover:border-blue-200 dark:hover:border-blue-900"
+                >
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="flex items-center gap-2 font-black">
-                      <Table2 size={16} className="text-primary" />
+                      <span className="grid h-7 w-7 place-items-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+                        <Table2 size={15} />
+                      </span>
                       {sheet.name}
                     </p>
-                    <span className="rounded-md bg-paper px-2 py-1 text-xs font-bold text-slate">{sheet.rowCount} rows</span>
+                    <span className="rounded-md bg-paper px-2 py-1 text-xs font-bold text-slate ring-1 ring-line">
+                      {sheet.rowCount} rows
+                    </span>
                   </div>
                   {sheet.columns.length ? (
                     <p className="mt-2 text-xs text-slate">
@@ -807,7 +861,7 @@ export default function ClonerWizard() {
               );
             })}
             <p className="flex items-center gap-2 rounded-xl border border-line bg-paper p-3 text-xs font-bold text-slate">
-              <Database size={14} className="shrink-0" />
+              <Database size={14} className="shrink-0 text-blue-500" />
               A new Google Sheet will be created with matching tabs, and data will be copied from your Excel file.
             </p>
           </div>
@@ -830,14 +884,20 @@ export default function ClonerWizard() {
           <Section title="Domain" icon={Globe2}>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Source Domain (auto-detected)">
-                <input className="input" dir="ltr" value={oldDomain} onChange={(event) => setOldDomain(event.target.value)} />
+                <TextInput
+                  icon={Globe2}
+                  dir="ltr"
+                  value={oldDomain}
+                  onChange={(event) => setOldDomain(event.target.value)}
+                />
               </Field>
               <Field label="New Domain" required>
-                <input
-                  className="input"
+                <TextInput
+                  icon={Globe2}
                   dir="ltr"
                   placeholder="newsite.co.il"
                   value={newDomain}
+                  valid={cleanDomain(newDomain).includes(".")}
                   onChange={(event) => updateNewDomain(event.target.value)}
                 />
               </Field>
@@ -847,14 +907,27 @@ export default function ClonerWizard() {
           <Section title="WordPress" icon={Globe2}>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Site URL">
-                <input className="input" dir="ltr" placeholder="https://www.newsite.co.il" value={wpUrl} onChange={(event) => setWpUrl(event.target.value)} />
+                <TextInput
+                  icon={Link2}
+                  dir="ltr"
+                  placeholder="https://www.newsite.co.il"
+                  value={wpUrl}
+                  valid={URL_RE.test(wpUrl.trim())}
+                  onChange={(event) => setWpUrl(event.target.value)}
+                />
               </Field>
               <Field label="Username">
-                <input className="input" dir="ltr" placeholder="admin" value={wpUsername} onChange={(event) => setWpUsername(event.target.value)} />
+                <TextInput
+                  icon={User}
+                  dir="ltr"
+                  placeholder="admin"
+                  value={wpUsername}
+                  onChange={(event) => setWpUsername(event.target.value)}
+                />
               </Field>
               <Field label="App Password">
-                <input
-                  className="input"
+                <TextInput
+                  icon={Lock}
                   dir="ltr"
                   type="password"
                   autoComplete="off"
@@ -876,9 +949,10 @@ export default function ClonerWizard() {
           <Section title="Google Sheets" icon={Table2}>
             <div className="grid gap-4 md:grid-cols-2">
               <Field label="Sheet Title">
-                <input
-                  className="input"
+                <TextInput
+                  icon={Table2}
                   value={sheetTitle}
+                  valid={sheetTitle.trim().length > 2}
                   onChange={(event) => {
                     setTitleEdited(true);
                     setSheetTitle(event.target.value);
@@ -903,47 +977,47 @@ export default function ClonerWizard() {
               </div>
             </div>
             <p className="mt-2 flex items-center gap-2 text-xs font-bold text-slate">
-              <Table2 size={14} />
+              <Table2 size={14} className="text-blue-500" />
               A new sheet will be created with {buildSheetTabMappings().length} tab(s).
             </p>
             {sheetsTest ? <TestMessage result={sheetsTest} /> : null}
           </Section>
 
           <Section title="SMTP (Optional)" icon={Mail}>
-            <label className="flex items-center gap-2 text-sm font-bold">
-              <input type="checkbox" checked={smtpEnabled} onChange={(event) => setSmtpEnabled(event.target.checked)} />
+            <label className="flex w-fit cursor-pointer items-center gap-2 text-sm font-bold">
+              <input type="checkbox" className="h-4 w-4 accent-blue-600" checked={smtpEnabled} onChange={(event) => setSmtpEnabled(event.target.checked)} />
               Enable SMTP notifications
             </label>
             {smtpEnabled ? (
               <div className="mt-3 grid gap-4 md:grid-cols-2">
                 <Field label="Host">
-                  <input className="input" dir="ltr" value={smtpHost} onChange={(event) => setSmtpHost(event.target.value)} />
+                  <TextInput icon={Globe2} dir="ltr" value={smtpHost} onChange={(event) => setSmtpHost(event.target.value)} />
                 </Field>
                 <Field label="Port">
-                  <input className="input" dir="ltr" inputMode="numeric" value={smtpPort} onChange={(event) => setSmtpPort(event.target.value)} />
+                  <TextInput dir="ltr" inputMode="numeric" value={smtpPort} onChange={(event) => setSmtpPort(event.target.value)} />
                 </Field>
                 <Field label="Email">
-                  <input className="input" dir="ltr" value={smtpUser} onChange={(event) => setSmtpUser(event.target.value)} />
+                  <TextInput icon={Mail} dir="ltr" value={smtpUser} valid={EMAIL_RE.test(smtpUser.trim())} onChange={(event) => setSmtpUser(event.target.value)} />
                 </Field>
                 <Field label="Password">
-                  <input className="input" dir="ltr" type="password" autoComplete="off" value={smtpPass} onChange={(event) => setSmtpPass(event.target.value)} />
+                  <TextInput icon={Lock} dir="ltr" type="password" autoComplete="off" value={smtpPass} onChange={(event) => setSmtpPass(event.target.value)} />
                 </Field>
               </div>
             ) : null}
           </Section>
 
           <Section title="Sheet Permissions" icon={KeyRound}>
-            <label className="flex items-center gap-2 text-sm font-bold">
-              <input type="checkbox" checked={shareEnabled} onChange={(event) => setShareEnabled(event.target.checked)} />
+            <label className="flex w-fit cursor-pointer items-center gap-2 text-sm font-bold">
+              <input type="checkbox" className="h-4 w-4 accent-blue-600" checked={shareEnabled} onChange={(event) => setShareEnabled(event.target.checked)} />
               Share the sheet with an email address
             </label>
             {shareEnabled ? (
               <div className="mt-3 max-w-sm">
-                <input className="input" dir="ltr" placeholder="user@gmail.com" value={shareEmail} onChange={(event) => setShareEmail(event.target.value)} />
+                <TextInput icon={Mail} dir="ltr" placeholder="user@gmail.com" value={shareEmail} valid={EMAIL_RE.test(shareEmail.trim())} onChange={(event) => setShareEmail(event.target.value)} />
               </div>
             ) : null}
-            <label className="mt-4 flex items-center gap-2 text-sm font-bold">
-              <input type="checkbox" checked={activate} onChange={(event) => setActivate(event.target.checked)} />
+            <label className="mt-4 flex w-fit cursor-pointer items-center gap-2 text-sm font-bold">
+              <input type="checkbox" className="h-4 w-4 accent-blue-600" checked={activate} onChange={(event) => setActivate(event.target.checked)} />
               Activate the workflow automatically after cloning
             </label>
           </Section>
@@ -983,15 +1057,17 @@ export default function ClonerWizard() {
         <div className="grid gap-3 sm:grid-cols-3">
           <Stat label="New Workflow Name" value={data.workflowName} />
           <Stat label="Total Nodes" value={String(data.totalNodes)} />
-          <Stat label="Nodes to Change" value={String(data.nodesToChange)} />
+          <Stat label="Nodes to Change" value={String(data.nodesToChange)} accent />
         </div>
 
         <div className="mt-4 rounded-xl border border-line bg-paper p-4">
           <p className="flex items-center gap-2 font-black">
-            <Table2 size={16} className="text-primary" />
+            <span className="grid h-7 w-7 place-items-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+              <Table2 size={15} />
+            </span>
             New Google Sheet: {data.sheetPreview.title}
           </p>
-          <p className="mt-1 text-sm text-slate">
+          <p className="mt-1.5 text-sm text-slate">
             Tabs: {data.sheetPreview.tabs.join(", ") || "—"} · {data.sheetPreview.totalRows} rows total
           </p>
         </div>
@@ -1025,50 +1101,118 @@ export default function ClonerWizard() {
   function renderCloneResult(data: CloneResult) {
     const ok = data.ok && Boolean(data.workflow);
     return (
-      <Card icon={ok ? CheckCircle2 : AlertTriangle} title={ok ? "Step 5: Workflow Cloned Successfully!" : "Step 5: Clone Completed with Errors"}>
-        {data.sheet ? (
-          <div className="rounded-xl border border-line bg-paper p-4">
-            <p className="flex items-center gap-2 font-black">
-              <Table2 size={16} className="text-primary" />
-              New Google Sheet
-            </p>
-            <a className="mt-1 inline-flex items-center gap-1 break-all text-sm font-bold text-primary underline" href={data.sheet.url} target="_blank" rel="noreferrer">
-              {data.sheet.url}
-              <ExternalLink size={13} />
-            </a>
-            <p className="mt-1 text-sm text-slate">
-              Tabs: {data.sheet.tabsCreated.join(", ") || "—"} · {data.sheet.rowsWritten} rows written
-            </p>
-          </div>
-        ) : null}
+      <Panel className="relative overflow-hidden">
+        {ok ? <Confetti /> : null}
 
-        {data.workflow ? (
-          <div className="mt-3 rounded-xl border border-line bg-paper p-4">
-            <p className="flex items-center gap-2 font-black">
-              <Copy size={16} className="text-primary" />
-              New Workflow: {data.workflow.name}
-            </p>
-            <p className="mt-1 text-sm text-slate">
-              ID: {data.workflow.id} · Status: {data.workflow.active ? "✅ Active" : "⏸️ Inactive"}
-            </p>
-            <a className="mt-1 inline-flex items-center gap-1 break-all text-sm font-bold text-primary underline" href={data.workflow.url} target="_blank" rel="noreferrer">
-              {data.workflow.url}
-              <ExternalLink size={13} />
-            </a>
+        <div className="flex flex-col items-center gap-3 pb-2 pt-1 text-center">
+          <div
+            className={[
+              "animate-pop-in grid h-16 w-16 place-items-center rounded-full text-white shadow-lg",
+              ok
+                ? "bg-gradient-to-br from-green-500 to-emerald-600 shadow-emerald-500/40"
+                : "bg-gradient-to-br from-amber-400 to-orange-500 shadow-amber-500/40"
+            ].join(" ")}
+          >
+            {ok ? <Check size={34} /> : <AlertTriangle size={32} />}
           </div>
-        ) : null}
+          <h2 className="text-2xl font-black tracking-tight">
+            {ok ? "Workflow Cloned Successfully!" : "Clone Completed with Errors"}
+          </h2>
+          <p className="max-w-md text-sm text-slate">
+            {ok
+              ? "Your new workflow and Google Sheet are ready to use."
+              : "Some steps did not complete — review the change log below for details."}
+          </p>
+        </div>
+
+        <div className="mt-5 space-y-3">
+          {data.sheet ? (
+            <div className="rounded-xl border border-line bg-paper p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 font-black">
+                    <span className="grid h-7 w-7 place-items-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+                      <Table2 size={15} />
+                    </span>
+                    New Google Sheet
+                  </p>
+                  <a
+                    className="mt-1.5 inline-flex items-center gap-1 break-all text-sm font-bold text-primary dark:text-blue-400 underline"
+                    href={data.sheet.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {data.sheet.url}
+                    <ExternalLink size={13} />
+                  </a>
+                  <p className="mt-1 text-sm text-slate">
+                    Tabs: {data.sheet.tabsCreated.join(", ") || "—"} · {data.sheet.rowsWritten} rows written
+                  </p>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Copy sheet link"
+                  title="Copy sheet link"
+                  className="shrink-0 rounded-lg border border-line p-2 text-slate transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/40"
+                  onClick={() => void copyText(data.sheet!.url, "Sheet link")}
+                >
+                  <Copy size={15} />
+                </button>
+              </div>
+            </div>
+          ) : null}
+
+          {data.workflow ? (
+            <div className="rounded-xl border border-line bg-paper p-4">
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="flex items-center gap-2 font-black">
+                    <span className="grid h-7 w-7 place-items-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+                      <Copy size={15} />
+                    </span>
+                    New Workflow: {data.workflow.name}
+                  </p>
+                  <p className="mt-1.5 text-sm text-slate">
+                    ID: {data.workflow.id} · Status: {data.workflow.active ? "✅ Active" : "⏸️ Inactive"}
+                  </p>
+                  <a
+                    className="mt-1 inline-flex items-center gap-1 break-all text-sm font-bold text-primary dark:text-blue-400 underline"
+                    href={data.workflow.url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    {data.workflow.url}
+                    <ExternalLink size={13} />
+                  </a>
+                </div>
+                <button
+                  type="button"
+                  aria-label="Copy workflow link"
+                  title="Copy workflow link"
+                  className="shrink-0 rounded-lg border border-line p-2 text-slate transition hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 dark:hover:bg-blue-950/40"
+                  onClick={() => void copyText(data.workflow!.url, "Workflow link")}
+                >
+                  <Copy size={15} />
+                </button>
+              </div>
+            </div>
+          ) : null}
+        </div>
 
         <div className="mt-4 rounded-xl border border-line bg-paper p-4">
-          <p className="mb-2 text-sm font-black text-slate">Change Summary</p>
+          <p className="mb-3 text-sm font-black text-slate">Change Summary</p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
-            <SummaryRow label="Google Sheets nodes" value={data.summary.googleSheetsNodes} />
-            <SummaryRow label="WordPress nodes" value={data.summary.wordpressNodes} />
-            <SummaryRow label="HTTP Request nodes" value={data.summary.httpRequestNodes} />
-            <SummaryRow label="Code nodes" value={data.summary.codeNodes} />
-            <SummaryRow label="Email nodes" value={data.summary.emailNodes} />
-            <SummaryRow label="Credentials Created" value={data.summary.credentialsCreated} />
+            <SummaryRow icon={Table2} label="Google Sheets nodes" value={data.summary.googleSheetsNodes} />
+            <SummaryRow icon={Globe2} label="WordPress nodes" value={data.summary.wordpressNodes} />
+            <SummaryRow icon={Link2} label="HTTP Request nodes" value={data.summary.httpRequestNodes} />
+            <SummaryRow icon={Code2} label="Code nodes" value={data.summary.codeNodes} />
+            <SummaryRow icon={Mail} label="Email nodes" value={data.summary.emailNodes} />
+            <SummaryRow icon={KeyRound} label="Credentials Created" value={data.summary.credentialsCreated} />
           </div>
-          <p className="mt-2 text-xs font-bold text-slate">Total {data.summary.totalChanges} changes</p>
+          <p className="mt-3 inline-flex items-center gap-1.5 rounded-md bg-blue-50 px-2.5 py-1 text-xs font-black text-blue-700 dark:bg-blue-950/50 dark:text-blue-200">
+            <Sparkles size={13} />
+            Total {data.summary.totalChanges} changes
+          </p>
         </div>
 
         {data.changes.length ? (
@@ -1078,11 +1222,12 @@ export default function ClonerWizard() {
           </div>
         ) : null}
 
-        <div className="mt-6 flex flex-wrap gap-2">
+        <div className="mt-6 flex flex-wrap gap-2 border-t border-line pt-5">
           {data.workflow ? (
             <a className="btn-primary" href={data.workflow.url} target="_blank" rel="noreferrer">
               <ExternalLink size={16} />
               Open in n8n
+              <ArrowRight size={16} />
             </a>
           ) : null}
           {data.sheet ? (
@@ -1090,6 +1235,12 @@ export default function ClonerWizard() {
               <Table2 size={16} />
               Open Sheet
             </a>
+          ) : null}
+          {data.workflow || data.sheet ? (
+            <button className="btn-secondary" onClick={() => void shareUrl(data.workflow?.url || data.sheet?.url || "")}>
+              <Share2 size={16} />
+              Share
+            </button>
           ) : null}
           <button className="btn-secondary" onClick={resetForAnother}>
             <RefreshCw size={16} />
@@ -1100,7 +1251,7 @@ export default function ClonerWizard() {
             Dashboard
           </button>
         </div>
-      </Card>
+      </Panel>
     );
   }
 }
@@ -1112,13 +1263,14 @@ export default function ClonerWizard() {
 function Stepper({ current }: { current: number }) {
   const progress = STEPS.length > 1 ? ((current - 1) / (STEPS.length - 1)) * 100 : 0;
   return (
-    <nav aria-label="Progress" className="mb-2">
+    <nav aria-label="Progress" className="rounded-2xl border border-line bg-surface/70 px-4 py-5 shadow-sm backdrop-blur sm:px-8">
       <div className="relative">
-        {/* Connecting track + animated progress fill (sits behind the step circles). */}
-        <div className="absolute inset-x-0 top-5 h-0.5 bg-line" aria-hidden="true" />
+        {/* Connecting track + animated gradient progress fill, inset to align with the step
+            circle centres (each circle is 2.5rem wide, so its centre sits 1.25rem from the edge). */}
+        <div className="absolute left-5 right-5 top-5 h-1 -translate-y-1/2 rounded-full bg-line" aria-hidden="true" />
         <div
-          className="absolute start-0 top-5 h-0.5 bg-primary transition-all duration-500"
-          style={{ width: `${progress}%` }}
+          className="absolute left-5 top-5 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500 transition-all duration-700 ease-out"
+          style={{ width: `calc((100% - 2.5rem) * ${progress} / 100)` }}
           aria-hidden="true"
         />
         <ol className="relative flex items-start justify-between">
@@ -1127,30 +1279,36 @@ function Stepper({ current }: { current: number }) {
             const done = current > stepItem.id;
             const active = current === stepItem.id;
             return (
-              <li key={stepItem.id} className="flex flex-col items-center gap-1.5">
-                <div
-                  aria-current={active ? "step" : undefined}
-                  className={[
-                    "grid h-10 w-10 place-items-center rounded-full border-2 transition-all",
-                    active
-                      ? "border-primary bg-primary text-white shadow-panel"
-                      : done
-                        ? "border-green-500 bg-green-500 text-white"
-                        : "border-line bg-surface text-slate"
-                  ].join(" ")}
-                >
-                  {done ? (
-                    <CheckCircle2 size={20} />
-                  ) : active ? (
-                    <Icon size={18} />
-                  ) : (
-                    <span className="text-sm font-black">{stepItem.id}</span>
-                  )}
+              <li key={stepItem.id} className="flex flex-col items-center gap-2">
+                <div className={["relative transition-transform duration-300", active ? "scale-110" : ""].join(" ")}>
+                  {active ? (
+                    <span className="absolute inset-0 animate-ping rounded-full bg-blue-400/40" aria-hidden="true" />
+                  ) : null}
+                  <div
+                    aria-current={active ? "step" : undefined}
+                    aria-label={stepItem.label}
+                    className={[
+                      "relative grid h-10 w-10 place-items-center rounded-full border-2 ring-4 ring-surface transition-all duration-300",
+                      active
+                        ? "border-transparent bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/40"
+                        : done
+                          ? "border-transparent bg-gradient-to-br from-green-500 to-emerald-500 text-white shadow-md shadow-emerald-500/30"
+                          : "border-line bg-surface text-slate"
+                    ].join(" ")}
+                  >
+                    {done ? (
+                      <Check size={20} className="animate-pop-in" />
+                    ) : active ? (
+                      <Icon size={18} />
+                    ) : (
+                      <span className="text-sm font-black">{stepItem.id}</span>
+                    )}
+                  </div>
                 </div>
                 <span
                   className={[
-                    "text-xs font-black",
-                    active ? "text-primary" : done ? "text-green-600 dark:text-green-400" : "text-slate"
+                    "text-xs font-black transition-colors",
+                    active ? "text-blue-700 dark:text-blue-400" : done ? "text-emerald-600 dark:text-emerald-400" : "text-slate"
                   ].join(" ")}
                 >
                   {stepItem.label}
@@ -1161,6 +1319,15 @@ function Stepper({ current }: { current: number }) {
         </ol>
       </div>
     </nav>
+  );
+}
+
+/** Gradient-bordered surface panel. Used directly for results and inside Card. */
+function Panel({ children, className }: { children: ReactNode; className?: string }) {
+  return (
+    <div className="rounded-2xl bg-gradient-to-br from-blue-200/70 via-line to-transparent p-px shadow-panel dark:from-blue-900/40 dark:via-line">
+      <div className={["rounded-2xl bg-surface p-6 sm:p-8", className ?? ""].join(" ")}>{children}</div>
+    </div>
   );
 }
 
@@ -1176,24 +1343,28 @@ function Card({
   children: ReactNode;
 }) {
   return (
-    <div className="rounded-xl border border-line bg-surface p-6 shadow-panel sm:p-8">
-      <div className="mb-5">
-        <div className="flex items-center gap-2">
-          <Icon size={22} className="shrink-0 text-primary" />
-          <h2 className="text-xl font-black">{title}</h2>
+    <Panel>
+      <div className="mb-6 flex items-start gap-3">
+        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600 ring-1 ring-blue-100 dark:from-blue-950 dark:to-indigo-950 dark:text-blue-300 dark:ring-blue-900">
+          <Icon size={22} />
         </div>
-        {subtitle ? <p className="mt-1.5 text-sm text-slate">{subtitle}</p> : null}
+        <div className="min-w-0">
+          <h2 className="text-xl font-black tracking-tight">{title}</h2>
+          {subtitle ? <p className="mt-1 text-sm text-slate">{subtitle}</p> : null}
+        </div>
       </div>
       {children}
-    </div>
+    </Panel>
   );
 }
 
 function Section({ title, icon: Icon, children }: { title: string; icon: typeof Globe2; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-line bg-paper p-5">
-      <div className="mb-3 flex items-center gap-2">
-        <Icon size={16} className="text-primary" />
+    <section className="rounded-xl border border-line bg-paper/60 p-5 transition-colors hover:border-blue-200 dark:hover:border-blue-900">
+      <div className="mb-4 flex items-center gap-2">
+        <div className="grid h-7 w-7 place-items-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+          <Icon size={15} />
+        </div>
         <h3 className="text-sm font-black uppercase tracking-wide text-slate">{title}</h3>
       </div>
       {children}
@@ -1229,6 +1400,31 @@ function Field({
   );
 }
 
+/** Text input with an optional leading icon and a trailing validity checkmark. */
+type TextInputProps = { icon?: typeof Globe2; valid?: boolean } & InputHTMLAttributes<HTMLInputElement>;
+
+function TextInput({ icon: Icon, valid, className, ...rest }: TextInputProps) {
+  return (
+    <div className="relative">
+      {Icon ? (
+        <Icon size={16} className="pointer-events-none absolute inset-y-0 start-3 z-10 my-auto text-slate" />
+      ) : null}
+      <input
+        {...rest}
+        className={[
+          "input",
+          Icon ? "ps-9" : "",
+          valid ? "pe-9 border-green-400 dark:border-green-700" : "",
+          className ?? ""
+        ].join(" ")}
+      />
+      {valid ? (
+        <CheckCircle2 size={16} className="animate-pop-in pointer-events-none absolute inset-y-0 end-3 my-auto text-green-500" />
+      ) : null}
+    </div>
+  );
+}
+
 function Banner({ tone, children, onClose }: { tone: "error" | "info"; children: ReactNode; onClose?: () => void }) {
   const tones = {
     error: "border-red-200 bg-red-50 text-red-700 dark:border-red-900 dark:bg-red-950/40 dark:text-red-200",
@@ -1238,7 +1434,7 @@ function Banner({ tone, children, onClose }: { tone: "error" | "info"; children:
     <div
       role={tone === "error" ? "alert" : "status"}
       aria-live={tone === "error" ? "assertive" : "polite"}
-      className={`mt-4 flex items-center gap-2 rounded-xl border p-3 text-sm font-bold ${tones[tone]}`}
+      className={`animate-fade-up mt-4 flex items-center gap-2 rounded-xl border p-3 text-sm font-bold ${tones[tone]}`}
     >
       <span className="flex flex-1 items-center gap-2">{children}</span>
       {onClose ? (
@@ -1259,7 +1455,7 @@ function TestMessage({ result }: { result: { ok: boolean; message: string } }) {
   return (
     <p
       className={[
-        "mt-3 flex items-center gap-2 rounded-xl border p-2.5 text-sm font-bold",
+        "animate-fade-up mt-3 flex items-center gap-2 rounded-xl border p-2.5 text-sm font-bold",
         result.ok
           ? "border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-200"
           : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
@@ -1271,22 +1467,39 @@ function TestMessage({ result }: { result: { ok: boolean; message: string } }) {
   );
 }
 
-function Stat({ label, value }: { label: string; value: string }) {
+function Stat({ label, value, accent }: { label: string; value: string; accent?: boolean }) {
   return (
-    <div className="rounded-xl border border-line bg-paper p-3">
+    <div
+      className={[
+        "rounded-xl border p-3",
+        accent
+          ? "border-blue-200 bg-gradient-to-br from-blue-50 to-indigo-50 dark:border-blue-900 dark:from-blue-950/50 dark:to-indigo-950/40"
+          : "border-line bg-paper"
+      ].join(" ")}
+    >
       <p className="text-xs font-black uppercase text-slate">{label}</p>
-      <p className="mt-1 truncate text-sm font-black" title={value}>
+      <p className={["mt-1 truncate text-sm font-black", accent ? "text-blue-700 dark:text-blue-300" : ""].join(" ")} title={value}>
         {value || "—"}
       </p>
     </div>
   );
 }
 
-function SummaryRow({ label, value }: { label: string; value: number }) {
+function SummaryRow({ icon: Icon, label, value }: { icon: typeof Globe2; label: string; value: number }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-md bg-surface px-3 py-2 text-sm">
-      <span className="font-bold text-slate">{label}</span>
-      <span className="font-black">{value}</span>
+    <div className="flex items-center justify-between gap-2 rounded-lg border border-line bg-surface px-3 py-2 text-sm">
+      <span className="flex items-center gap-2 font-bold text-slate">
+        <Icon size={14} className="text-blue-500" />
+        {label}
+      </span>
+      <span
+        className={[
+          "grid h-6 min-w-[1.5rem] place-items-center rounded-md px-1.5 text-xs font-black",
+          value > 0 ? "bg-blue-100 text-blue-700 dark:bg-blue-950 dark:text-blue-200" : "bg-paper text-slate"
+        ].join(" ")}
+      >
+        {value}
+      </span>
     </div>
   );
 }
@@ -1299,11 +1512,11 @@ function ChangeList({ changes }: { changes: CloneResult["changes"] }) {
           <p className="flex items-center gap-2 text-sm font-black">
             <CheckCircle2 size={14} className="text-green-600" />
             {change.nodeName}
-            <span className="rounded-md bg-paper px-1.5 py-0.5 text-[11px] font-bold text-slate">{change.change}</span>
+            <span className="rounded-md bg-paper px-1.5 py-0.5 text-[11px] font-bold text-slate ring-1 ring-line">{change.change}</span>
           </p>
           {change.old != null || change.new != null ? (
             <p dir="ltr" className="mt-1 break-all text-start text-xs text-slate">
-              {change.old ?? "∅"} <span className="text-primary">→</span> {change.new ?? "∅"}
+              {change.old ?? "∅"} <span className="text-primary dark:text-blue-400">→</span> {change.new ?? "∅"}
             </p>
           ) : null}
         </div>
@@ -1328,7 +1541,7 @@ function WizardFooter({
   nextIcon?: typeof ArrowRight;
 }) {
   return (
-    <div className="mt-6 flex items-center justify-between gap-3 border-t border-line pt-4">
+    <div className="mt-6 flex items-center justify-between gap-3 border-t border-line pt-5">
       {onBack ? (
         <button className="btn-secondary" onClick={onBack}>
           <ArrowLeft size={16} />
@@ -1349,6 +1562,98 @@ function WizardFooter({
   );
 }
 
+/** Workflow row in the step-2 picker: status dot, domain badges, node count. */
+function WorkflowCard({
+  workflow,
+  selected,
+  onSelect
+}: {
+  workflow: N8nWorkflowSummary;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      onClick={onSelect}
+      className={[
+        "group relative flex w-full items-center justify-between gap-3 border-b border-line px-4 py-3.5 text-start transition-all last:border-b-0",
+        selected
+          ? "bg-gradient-to-r from-blue-50 to-transparent dark:from-blue-950/50"
+          : "hover:bg-blue-50/50 dark:hover:bg-blue-950/20"
+      ].join(" ")}
+    >
+      {selected ? (
+        <span className="absolute inset-y-0 left-0 w-1 bg-gradient-to-b from-blue-500 to-indigo-500" aria-hidden="true" />
+      ) : null}
+      <span className="flex min-w-0 items-center gap-3">
+        <span
+          className={[
+            "h-2.5 w-2.5 shrink-0 rounded-full ring-2",
+            workflow.active
+              ? "bg-emerald-500 ring-emerald-500/20"
+              : "bg-gray-300 ring-gray-300/40 dark:bg-gray-600 dark:ring-gray-600/40"
+          ].join(" ")}
+          title={workflow.active ? "Active" : "Inactive"}
+        />
+        <span className="min-w-0">
+          <span className="block truncate text-sm font-black transition-colors group-hover:text-blue-700 dark:group-hover:text-blue-300">
+            {workflow.name || "(unnamed)"}
+          </span>
+          <span className="mt-1 flex flex-wrap items-center gap-1.5">
+            {workflow.domains.length ? (
+              <>
+                {workflow.domains.slice(0, 2).map((domain) => (
+                  <span
+                    key={domain}
+                    className="inline-flex items-center gap-1 rounded-md bg-paper px-1.5 py-0.5 text-[11px] font-bold text-slate ring-1 ring-line"
+                  >
+                    <Globe2 size={10} />
+                    {domain}
+                  </span>
+                ))}
+                {workflow.domains.length > 2 ? (
+                  <span className="text-[11px] font-bold text-slate">+{workflow.domains.length - 2}</span>
+                ) : null}
+              </>
+            ) : (
+              <span className="text-xs text-slate">No domain detected</span>
+            )}
+          </span>
+        </span>
+      </span>
+      <span className="flex shrink-0 items-center gap-2">
+        <span className="rounded-md bg-paper px-2 py-1 text-xs font-bold text-slate ring-1 ring-line">{workflow.nodeCount} nodes</span>
+        <ArrowRight
+          size={16}
+          className={selected ? "text-blue-600" : "text-slate opacity-0 transition group-hover:opacity-100"}
+        />
+      </span>
+    </button>
+  );
+}
+
+/** Lightweight CSS confetti burst shown on a successful clone. */
+function Confetti() {
+  const colors = ["#3b82f6", "#6366f1", "#22c55e", "#f59e0b", "#ec4899", "#14b8a6"];
+  return (
+    <div aria-hidden="true" className="pointer-events-none absolute inset-x-0 top-0 z-10 h-0 overflow-visible">
+      <div className="relative mx-auto h-0 max-w-md">
+        {Array.from({ length: 28 }).map((_, index) => (
+          <span
+            key={index}
+            className="confetti-piece absolute top-0 h-2 w-2 rounded-[2px]"
+            style={{
+              left: `${(index * 37) % 100}%`,
+              backgroundColor: colors[index % colors.length],
+              animationDelay: `${(index % 7) * 0.12}s`
+            }}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
 // ---- Workflow analysis breakdown (step 2 preview panel) --------------------
 
 function AnalysisView({ analysis }: { analysis: WorkflowAnalysis }) {
@@ -1356,7 +1661,7 @@ function AnalysisView({ analysis }: { analysis: WorkflowAnalysis }) {
     <div className="space-y-4">
       <div>
         <p className="flex items-center gap-2 font-black">
-          <Database size={16} className="text-primary" />
+          <Database size={16} className="text-primary dark:text-blue-400" />
           Analysis: {analysis.workflowName || "(unnamed)"}
         </p>
         <p className="mt-1 text-xs text-slate">
@@ -1397,7 +1702,7 @@ function AnalysisView({ analysis }: { analysis: WorkflowAnalysis }) {
 
       <div>
         <p className="flex items-center gap-2 text-sm font-black">
-          <KeyRound size={15} className="text-primary" />
+          <KeyRound size={15} className="text-primary dark:text-blue-400" />
           Existing Credentials
         </p>
         <ul className="mt-1 space-y-1">
@@ -1420,7 +1725,7 @@ function AnalysisGroup({ icon: Icon, title, items }: { icon: typeof Globe2; titl
   return (
     <div>
       <p className="flex items-center gap-2 text-sm font-black">
-        <Icon size={15} className="text-primary" />
+        <Icon size={15} className="text-primary dark:text-blue-400" />
         {title}
       </p>
       {items.length ? (
@@ -1445,7 +1750,7 @@ function Toast({ tone, message, onClose }: { tone: "success" | "error"; message:
   };
   return (
     <div className="fixed inset-x-0 bottom-5 z-50 flex justify-center px-4">
-      <div className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-black shadow-panel ${tones[tone]}`}>
+      <div className={`animate-fade-up flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-black shadow-panel ${tones[tone]}`}>
         {tone === "success" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
         <span>{message}</span>
         <button
@@ -1476,12 +1781,32 @@ function ConfirmDialog({
   onCancel: () => void;
   onConfirm: () => void;
 }) {
+  const cancelRef = useRef<HTMLButtonElement | null>(null);
+  // Focus the dialog on open and let Escape dismiss it (unless a clone is already in flight).
+  useEffect(() => {
+    cancelRef.current?.focus();
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape" && !busy) onCancel();
+    }
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [busy, onCancel]);
+
   return (
-    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-md rounded-xl border border-line bg-surface p-6 shadow-panel">
+    <div
+      className="fixed inset-0 z-50 grid place-items-center bg-black/50 p-4 backdrop-blur-sm"
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="confirm-clone-title"
+    >
+      <div className="animate-pop-in w-full max-w-md rounded-2xl border border-line bg-surface p-6 shadow-lg">
         <div className="mb-3 flex items-center gap-2">
-          <AlertTriangle size={20} className="text-amber-500" />
-          <h2 className="text-lg font-black">Confirm Clone</h2>
+          <span className="grid h-9 w-9 place-items-center rounded-xl bg-amber-100 text-amber-600 dark:bg-amber-950/60 dark:text-amber-300">
+            <AlertTriangle size={18} />
+          </span>
+          <h2 id="confirm-clone-title" className="text-lg font-black">
+            Confirm Clone
+          </h2>
         </div>
         <p className="text-sm text-slate">
           This will create a new Google Sheet, credentials, and a new workflow in n8n
@@ -1498,7 +1823,7 @@ function ConfirmDialog({
           </p>
         </div>
         <div className="mt-5 flex items-center justify-end gap-2">
-          <button className="btn-secondary" onClick={onCancel} disabled={busy}>
+          <button ref={cancelRef} className="btn-secondary" onClick={onCancel} disabled={busy}>
             Cancel
           </button>
           <button className="btn-primary" onClick={onConfirm} disabled={busy}>
@@ -1512,8 +1837,8 @@ function ConfirmDialog({
 }
 
 const STATUS_META: Record<ClonerJobStatus, { label: string; className: string }> = {
-  pending: { label: "Pending", className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" },
-  connecting: { label: "Connecting", className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" },
+  pending: { label: "Pending", className: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200" },
+  connecting: { label: "Connecting", className: "bg-zinc-100 text-zinc-700 dark:bg-zinc-800 dark:text-zinc-200" },
   uploading: { label: "Uploading", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200" },
   cloning: { label: "Cloning", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200" },
   done: { label: "Done", className: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200" },
@@ -1545,13 +1870,15 @@ function HistoryPanel({
   onRefresh: () => void;
 }) {
   return (
-    <div className="mt-4 rounded-xl border border-line bg-surface shadow-panel">
+    <div className="mt-4 rounded-2xl border border-line bg-surface shadow-panel">
       <div className="flex items-center justify-between gap-2 p-4">
         <button type="button" onClick={onToggle} className="flex items-center gap-2 text-start">
-          <History size={18} className="text-primary" />
+          <span className="grid h-8 w-8 place-items-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">
+            <History size={16} />
+          </span>
           <span className="text-sm font-black">Recent Clone History</span>
           {jobs.length ? (
-            <span className="rounded-md bg-paper px-2 py-0.5 text-xs font-bold text-slate">{jobs.length}</span>
+            <span className="rounded-md bg-paper px-2 py-0.5 text-xs font-bold text-slate ring-1 ring-line">{jobs.length}</span>
           ) : null}
         </button>
         {open ? (
@@ -1574,7 +1901,7 @@ function HistoryPanel({
           ) : (
             <ul className="space-y-2">
               {jobs.map((job) => (
-                <li key={job.id} className="rounded-xl border border-line bg-paper p-3">
+                <li key={job.id} className="rounded-xl border border-line bg-paper p-3 transition-colors hover:border-blue-200 dark:hover:border-blue-900">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="flex min-w-0 items-center gap-2">
                       <StatusBadge status={job.status} />
@@ -1595,7 +1922,7 @@ function HistoryPanel({
                     <div className="mt-2 flex flex-wrap gap-3 text-xs font-bold">
                       {job.sheetUrl ? (
                         <a
-                          className="inline-flex items-center gap-1 text-primary underline"
+                          className="inline-flex items-center gap-1 text-primary dark:text-blue-400 underline"
                           href={job.sheetUrl}
                           target="_blank"
                           rel="noreferrer"
@@ -1606,7 +1933,7 @@ function HistoryPanel({
                       ) : null}
                       {job.newSiteUrl ? (
                         <a
-                          className="inline-flex items-center gap-1 text-primary underline"
+                          className="inline-flex items-center gap-1 text-primary dark:text-blue-400 underline"
                           href={job.newSiteUrl}
                           target="_blank"
                           rel="noreferrer"

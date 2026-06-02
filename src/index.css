@@ -68,15 +68,15 @@ code {
 
 @layer components {
   .input {
-    @apply h-11 w-full rounded-md border border-line bg-surface px-3 text-sm font-semibold text-ink outline-none transition placeholder:text-slate focus:border-primary focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950;
+    @apply h-11 w-full rounded-lg border border-line bg-surface px-3 text-sm font-semibold text-ink outline-none transition-all duration-200 placeholder:text-slate focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 dark:focus:ring-blue-500/25;
   }
 
   .btn-primary {
-    @apply inline-flex h-10 items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-black text-white shadow-sm transition hover:bg-blue-800;
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-gradient-to-r from-blue-600 to-indigo-600 px-4 text-sm font-bold text-white shadow-sm shadow-blue-600/20 transition-all duration-200 hover:-translate-y-px hover:scale-[1.02] hover:from-blue-700 hover:to-indigo-700 hover:shadow-md hover:shadow-blue-600/30 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/30 active:translate-y-0 active:scale-100 disabled:cursor-not-allowed disabled:opacity-60 disabled:shadow-none disabled:hover:translate-y-0 disabled:hover:scale-100 disabled:hover:from-blue-600 disabled:hover:to-indigo-600;
   }
 
   .btn-secondary {
-    @apply inline-flex h-10 items-center justify-center gap-2 rounded-md border border-line bg-surface px-4 text-sm font-black text-ink shadow-sm transition hover:border-primary hover:text-primary;
+    @apply inline-flex h-10 items-center justify-center gap-2 rounded-lg border border-line bg-surface px-4 text-sm font-bold text-ink shadow-sm transition-all duration-200 hover:-translate-y-px hover:border-blue-300 hover:bg-blue-50 hover:text-blue-700 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-blue-500/20 active:translate-y-0 disabled:cursor-not-allowed disabled:opacity-60 disabled:hover:translate-y-0 dark:hover:border-blue-800 dark:hover:bg-blue-950/40 dark:hover:text-blue-200;
   }
 
   .tab {
@@ -105,5 +105,98 @@ code {
 
   .chat-assistant {
     @apply mr-8 rounded-md border border-line bg-surface p-3 text-ink;
+  }
+}
+
+@layer utilities {
+  /* Pop/scale entrance — used for checkmarks, success hero, validation ticks. */
+  @keyframes pop-in {
+    0% {
+      transform: scale(0.4);
+      opacity: 0;
+    }
+    60% {
+      transform: scale(1.08);
+    }
+    100% {
+      transform: scale(1);
+      opacity: 1;
+    }
+  }
+  .animate-pop-in {
+    animation: pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  }
+
+  /* Gentle rise — used to transition wizard step content. */
+  @keyframes fade-up {
+    from {
+      opacity: 0;
+      transform: translateY(10px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  .animate-fade-up {
+    animation: fade-up 0.45s ease-out both;
+  }
+
+  /* Indeterminate progress bar — used while an upload is in flight. */
+  @keyframes indeterminate {
+    0% {
+      left: -45%;
+      width: 45%;
+    }
+    50% {
+      left: 30%;
+      width: 55%;
+    }
+    100% {
+      left: 100%;
+      width: 45%;
+    }
+  }
+  .animate-indeterminate {
+    position: absolute;
+    top: 0;
+    height: 100%;
+    animation: indeterminate 1.1s ease-in-out infinite;
+  }
+
+  /* Confetti burst on a successful clone. */
+  @keyframes confetti-fall {
+    0% {
+      transform: translateY(-14px) rotate(0deg);
+      opacity: 1;
+    }
+    100% {
+      transform: translateY(190px) rotate(540deg);
+      opacity: 0;
+    }
+  }
+  .confetti-piece {
+    animation: confetti-fall 1.5s ease-in forwards;
+  }
+
+  /* Subtle dotted texture for the page background. */
+  .bg-dotgrid {
+    background-image: radial-gradient(circle, rgba(29, 78, 216, 0.12) 1px, transparent 1px);
+    background-size: 22px 22px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .animate-pop-in,
+    .animate-fade-up,
+    .animate-indeterminate,
+    .confetti-piece,
+    .animate-ping,
+    .animate-bounce {
+      animation: none !important;
+    }
+    /* Keep spinners turning (they convey "busy") but slow them down. */
+    .animate-spin {
+      animation-duration: 1.6s;
+    }
   }
 }
