@@ -525,30 +525,84 @@ export default function ClonerWizard() {
         className="pointer-events-none fixed inset-0 bg-dotgrid opacity-70 [mask-image:radial-gradient(ellipse_at_top,black,transparent_72%)]"
       />
 
-      <header className="sticky top-0 z-30 border-b border-white/10 bg-gradient-to-r from-blue-600/95 to-indigo-700/95 shadow-lg shadow-blue-900/20 backdrop-blur-md">
-        <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-4 py-3.5 sm:px-6">
-          <div className="flex items-center gap-3">
-            <div className="relative grid h-11 w-11 place-items-center rounded-xl bg-white/15 shadow-inner ring-1 ring-white/25">
-              <Workflow size={20} className="text-white" />
-              <Sparkles size={11} className="absolute -right-0.5 -top-0.5 text-amber-300" />
+      <header
+        style={{
+          height: 52,
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          background: "rgba(10,15,30,0.92)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderBottom: "1px solid #1e2d45",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1200,
+            margin: "0 auto",
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 20px",
+            gap: 12,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                width: 28, height: 28, flexShrink: 0,
+                background: "linear-gradient(135deg, #3b82f6, #06b6d4)",
+                borderRadius: 7,
+                display: "grid", placeItems: "center",
+              }}
+            >
+              <Workflow size={15} color="white" />
             </div>
-            <div>
-              <h1 className="flex items-center gap-2 text-base font-black text-white sm:text-lg">
-                n8n Workflow Cloner
-                <span className="hidden rounded-full bg-white/20 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wide text-white ring-1 ring-white/25 sm:inline">
-                  Google Sheets
-                </span>
-              </h1>
-              <p className="text-xs text-blue-100 sm:text-sm">5-step wizard to clone automation workflows to a new site</p>
-            </div>
+            <h1 style={{ fontSize: 15, color: "#e2e8f0", fontWeight: 700, margin: 0, display: "flex", alignItems: "center", gap: 8 }}>
+              n8n Workflow Cloner
+              <span
+                className="hidden sm:inline"
+                style={{
+                  background: "rgba(59,130,246,0.12)",
+                  border: "1px solid rgba(59,130,246,0.25)",
+                  borderRadius: 999,
+                  padding: "1px 8px",
+                  fontSize: 10, fontWeight: 700,
+                  color: "#60a5fa",
+                  letterSpacing: "0.06em",
+                  textTransform: "uppercase",
+                }}
+              >
+                Google Sheets
+              </span>
+            </h1>
           </div>
-          <div className="flex items-center gap-2">
+          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
             <ThemeToggle />
             <button
-              className="inline-flex h-10 items-center justify-center gap-2 rounded-lg bg-white/10 px-4 text-sm font-bold text-white ring-1 ring-white/25 backdrop-blur transition-all duration-200 hover:-translate-y-px hover:bg-white/20"
+              style={{
+                background: "transparent", border: "1px solid #243352", color: "#94a3b8",
+                borderRadius: 7, padding: "5px 12px", fontSize: 13,
+                display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
+                transition: "border-color 0.15s, color 0.15s, box-shadow 0.15s",
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = "#3b82f6";
+                e.currentTarget.style.color = "#e2e8f0";
+                e.currentTarget.style.boxShadow = "0 0 8px rgba(59,130,246,0.2)";
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = "#243352";
+                e.currentTarget.style.color = "#94a3b8";
+                e.currentTarget.style.boxShadow = "";
+              }}
               onClick={() => navigate("/")}
             >
-              <Home size={17} />
+              <Home size={15} />
               <span className="max-sm:hidden">Dashboard</span>
             </button>
           </div>
@@ -1263,14 +1317,29 @@ export default function ClonerWizard() {
 function Stepper({ current }: { current: number }) {
   const progress = STEPS.length > 1 ? ((current - 1) / (STEPS.length - 1)) * 100 : 0;
   return (
-    <nav aria-label="Progress" className="rounded-2xl border border-line bg-surface/70 px-4 py-5 shadow-sm backdrop-blur sm:px-8">
+    <nav
+      aria-label="Progress"
+      style={{
+        background: "#111827",
+        border: "1px solid #1e2d45",
+        borderRadius: 10,
+        padding: "10px 16px",
+      }}
+    >
       <div className="relative">
-        {/* Connecting track + animated gradient progress fill, inset to align with the step
-            circle centres (each circle is 2.5rem wide, so its centre sits 1.25rem from the edge). */}
-        <div className="absolute left-5 right-5 top-5 h-1 -translate-y-1/2 rounded-full bg-line" aria-hidden="true" />
+        {/* Connector track */}
         <div
-          className="absolute left-5 top-5 h-1 -translate-y-1/2 rounded-full bg-gradient-to-r from-blue-500 via-indigo-500 to-emerald-500 transition-all duration-700 ease-out"
-          style={{ width: `calc((100% - 2.5rem) * ${progress} / 100)` }}
+          className="absolute left-3 right-3 top-3 h-px -translate-y-1/2"
+          style={{ background: "#1e2d45" }}
+          aria-hidden="true"
+        />
+        {/* Progress fill */}
+        <div
+          className="absolute left-3 top-3 h-px -translate-y-1/2 transition-all duration-700 ease-out"
+          style={{
+            background: "linear-gradient(90deg, #3b82f6, #06b6d4)",
+            width: `calc((100% - 1.5rem) * ${progress} / 100)`,
+          }}
           aria-hidden="true"
         />
         <ol className="relative flex items-start justify-between">
@@ -1280,36 +1349,44 @@ function Stepper({ current }: { current: number }) {
             const active = current === stepItem.id;
             return (
               <li key={stepItem.id} className="flex flex-col items-center gap-2">
-                <div className={["relative transition-transform duration-300", active ? "scale-110" : ""].join(" ")}>
+                <div style={{ transform: active ? "scale(1.1)" : "scale(1)", transition: "transform 0.3s", position: "relative" }}>
                   {active ? (
-                    <span className="absolute inset-0 animate-ping rounded-full bg-blue-400/40" aria-hidden="true" />
+                    <span
+                      className="animate-ping"
+                      style={{
+                        position: "absolute", inset: -2,
+                        borderRadius: "50%",
+                        background: "rgba(59,130,246,0.3)",
+                      }}
+                      aria-hidden="true"
+                    />
                   ) : null}
                   <div
                     aria-current={active ? "step" : undefined}
                     aria-label={stepItem.label}
-                    className={[
-                      "relative grid h-10 w-10 place-items-center rounded-full border-2 ring-4 ring-surface transition-all duration-300",
-                      active
-                        ? "border-transparent bg-gradient-to-br from-blue-600 to-indigo-600 text-white shadow-lg shadow-blue-600/40"
+                    style={{
+                      width: 24, height: 24,
+                      borderRadius: "50%",
+                      display: "grid", placeItems: "center",
+                      position: "relative",
+                      fontSize: 11, fontWeight: 700,
+                      transition: "all 0.3s",
+                      ...(active
+                        ? { background: "#3b82f6", color: "white", boxShadow: "0 0 10px rgba(59,130,246,0.4)", border: "none" }
                         : done
-                          ? "border-transparent bg-gradient-to-br from-green-500 to-emerald-500 text-white shadow-md shadow-emerald-500/30"
-                          : "border-line bg-surface text-slate"
-                    ].join(" ")}
+                          ? { background: "#10b981", color: "white", border: "none" }
+                          : { background: "#1a2235", border: "1px solid #243352", color: "#475569" }),
+                    }}
                   >
-                    {done ? (
-                      <Check size={20} className="animate-pop-in" />
-                    ) : active ? (
-                      <Icon size={18} />
-                    ) : (
-                      <span className="text-sm font-black">{stepItem.id}</span>
-                    )}
+                    {done ? <Check size={13} /> : active ? <Icon size={12} /> : <span>{stepItem.id}</span>}
                   </div>
                 </div>
                 <span
-                  className={[
-                    "text-xs font-black transition-colors",
-                    active ? "text-blue-700 dark:text-blue-400" : done ? "text-emerald-600 dark:text-emerald-400" : "text-slate"
-                  ].join(" ")}
+                  style={{
+                    fontSize: 12, fontWeight: 700,
+                    color: active ? "#e2e8f0" : done ? "#10b981" : "#64748b",
+                    transition: "color 0.3s",
+                  }}
                 >
                   {stepItem.label}
                 </span>
@@ -1322,11 +1399,22 @@ function Stepper({ current }: { current: number }) {
   );
 }
 
-/** Gradient-bordered surface panel. Used directly for results and inside Card. */
+/** Dark surface panel — form card wrapper. */
 function Panel({ children, className }: { children: ReactNode; className?: string }) {
   return (
-    <div className="rounded-2xl bg-gradient-to-br from-blue-200/70 via-line to-transparent p-px shadow-panel dark:from-blue-900/40 dark:via-line">
-      <div className={["rounded-2xl bg-surface p-6 sm:p-8", className ?? ""].join(" ")}>{children}</div>
+    <div
+      style={{
+        background: "#111827",
+        border: "1px solid #1e2d45",
+        borderRadius: 10,
+      }}
+    >
+      <div
+        className={className ?? ""}
+        style={{ padding: 24 }}
+      >
+        {children}
+      </div>
     </div>
   );
 }
@@ -1344,13 +1432,22 @@ function Card({
 }) {
   return (
     <Panel>
-      <div className="mb-6 flex items-start gap-3">
-        <div className="grid h-11 w-11 shrink-0 place-items-center rounded-xl bg-gradient-to-br from-blue-50 to-indigo-50 text-blue-600 ring-1 ring-blue-100 dark:from-blue-950 dark:to-indigo-950 dark:text-blue-300 dark:ring-blue-900">
-          <Icon size={22} />
+      <div style={{ marginBottom: 24, display: "flex", alignItems: "flex-start", gap: 12 }}>
+        <div
+          style={{
+            width: 40, height: 40, flexShrink: 0,
+            display: "grid", placeItems: "center",
+            borderRadius: 10,
+            background: "rgba(59,130,246,0.12)",
+            border: "1px solid rgba(59,130,246,0.2)",
+            color: "#60a5fa",
+          }}
+        >
+          <Icon size={20} />
         </div>
-        <div className="min-w-0">
-          <h2 className="text-xl font-black tracking-tight">{title}</h2>
-          {subtitle ? <p className="mt-1 text-sm text-slate">{subtitle}</p> : null}
+        <div style={{ minWidth: 0 }}>
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", margin: 0 }}>{title}</h2>
+          {subtitle ? <p style={{ marginTop: 4, fontSize: 13, color: "#64748b" }}>{subtitle}</p> : null}
         </div>
       </div>
       {children}
@@ -1360,12 +1457,28 @@ function Card({
 
 function Section({ title, icon: Icon, children }: { title: string; icon: typeof Globe2; children: ReactNode }) {
   return (
-    <section className="rounded-xl border border-line bg-paper/60 p-5 transition-colors hover:border-blue-200 dark:hover:border-blue-900">
-      <div className="mb-4 flex items-center gap-2">
-        <div className="grid h-7 w-7 place-items-center rounded-lg bg-blue-50 text-blue-600 dark:bg-blue-950 dark:text-blue-300">
-          <Icon size={15} />
+    <section
+      style={{
+        borderRadius: 8,
+        border: "1px solid #1e2d45",
+        background: "#0f1729",
+        padding: 20,
+      }}
+    >
+      <div style={{ marginBottom: 16, display: "flex", alignItems: "center", gap: 8 }}>
+        <div
+          style={{
+            width: 26, height: 26, display: "grid", placeItems: "center",
+            borderRadius: 6,
+            background: "rgba(59,130,246,0.12)",
+            color: "#60a5fa",
+          }}
+        >
+          <Icon size={13} />
         </div>
-        <h3 className="text-sm font-black uppercase tracking-wide text-slate">{title}</h3>
+        <h3 style={{ fontSize: 11, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#64748b", margin: 0 }}>
+          {title}
+        </h3>
       </div>
       {children}
     </section>
@@ -1385,14 +1498,29 @@ function Field({
 }) {
   return (
     <label className="block">
-      <span className="mb-1.5 block text-sm font-black text-ink">
+      <span
+        style={{
+          display: "flex", alignItems: "center", gap: 5,
+          marginBottom: 6,
+          fontSize: 11, fontWeight: 600,
+          textTransform: "uppercase", letterSpacing: "0.06em",
+          color: "#64748b",
+        }}
+      >
         {label}
-        {required ? <span className="text-red-600"> *</span> : null}
+        {required ? (
+          <span
+            style={{
+              width: 5, height: 5, borderRadius: "50%",
+              background: "#ef4444", display: "inline-block", flexShrink: 0,
+            }}
+          />
+        ) : null}
       </span>
       {children}
       {helpText ? (
-        <span className="mt-1.5 flex items-center gap-1 text-xs text-slate">
-          <Info size={12} className="shrink-0" />
+        <span style={{ marginTop: 6, display: "flex", alignItems: "center", gap: 4, fontSize: 11, color: "#475569" }}>
+          <Info size={11} style={{ flexShrink: 0 }} />
           {helpText}
         </span>
       ) : null}

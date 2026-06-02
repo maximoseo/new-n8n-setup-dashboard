@@ -12,6 +12,7 @@ import {
   Globe2,
   Lock,
   LogOut,
+  Menu,
   Palette,
   Play,
   RefreshCw,
@@ -62,6 +63,7 @@ export default function App() {
   const [loading, setLoading] = useState<string>("");
   const [error, setError] = useState<string>("");
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
 
   useEffect(() => {
     fetchSites()
@@ -134,55 +136,136 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-paper text-ink">
-      <header className="sticky top-0 z-20 border-b border-line bg-surface backdrop-blur">
-        <div className="mx-auto flex max-w-[1500px] items-center justify-between px-5 py-4">
-          <div className="flex items-center gap-3">
-            <a href="https://dashboards-panel.maximo-seo.ai/" className="text-sm font-bold text-primary underline">← Dashboards</a>
-            <div className="grid h-10 w-10 place-items-center rounded-md bg-ink text-sm font-black text-paper">NS</div>
-            <div>
-              <h1 className="text-lg font-black tracking-normal">New Site Onboarding Dashboard</h1>
-              <p className="text-sm text-slate">{user?.email ?? "Automated n8n blog pipeline setup"}</p>
+    <div className="min-h-screen" style={{ background: "var(--bg)", color: "var(--text)" }}>
+      {/* Mobile sidebar overlay */}
+      {sidebarOpen && (
+        <div
+          className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm"
+          style={{ display: "none" }}
+          id="sidebar-overlay"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      <header
+        style={{
+          height: 52,
+          position: "sticky",
+          top: 0,
+          zIndex: 50,
+          background: "rgba(10,15,30,0.92)",
+          backdropFilter: "blur(12px)",
+          WebkitBackdropFilter: "blur(12px)",
+          borderBottom: "1px solid #1e2d45",
+          display: "flex",
+          alignItems: "center",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 1500,
+            margin: "0 auto",
+            width: "100%",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 20px",
+            gap: 8,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <button
+              className="sidebar-hamburger"
+              onClick={() => setSidebarOpen((v) => !v)}
+              aria-label="Toggle sidebar"
+              style={{ display: "none", background: "none", border: "none", color: "#94a3b8", padding: 4, cursor: "pointer" }}
+            >
+              <Menu size={20} />
+            </button>
+            <a
+              href="https://dashboards-panel.maximo-seo.ai/"
+              style={{ color: "#64748b", fontSize: 13, textDecoration: "none", whiteSpace: "nowrap" }}
+            >
+              ← Dashboards
+            </a>
+            <div
+              style={{
+                width: 28, height: 28, flexShrink: 0,
+                background: "linear-gradient(135deg, #3b82f6, #06b6d4)",
+                borderRadius: 7,
+                display: "grid", placeItems: "center",
+                color: "white", fontWeight: 700, fontSize: 12,
+              }}
+            >
+              NS
             </div>
+            <h1 style={{ fontSize: 15, color: "#e2e8f0", fontWeight: 600, margin: 0 }}>
+              New Site Onboarding Dashboard
+            </h1>
           </div>
-          <div className="flex flex-wrap items-center justify-end gap-2">
-            <a href="https://maximo-seo.ai/" className="text-sm font-bold text-primary underline">MaximoSEO</a>
+          <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: 8 }}>
+            {user?.email && (
+              <span style={{ color: "#64748b", fontSize: 12 }}>{user.email}</span>
+            )}
+            <a href="https://maximo-seo.ai/" style={{ color: "#64748b", fontSize: 13, textDecoration: "none" }}>MaximoSEO</a>
             <ThemeToggle />
-            <button className="btn-secondary" onClick={() => setSettingsOpen((value) => !value)}>
-              <Settings size={17} />
-              Settings
-            </button>
-            <button className="btn-secondary" onClick={() => void handleSignOut()}>
-              <LogOut size={17} />
-              Logout
-            </button>
+            <NavDarkBtn icon={<Settings size={15} />} onClick={() => setSettingsOpen((value) => !value)}>
+              <span className="max-sm:hidden">Settings</span>
+            </NavDarkBtn>
+            <NavDarkBtn icon={<LogOut size={15} />} onClick={() => void handleSignOut()}>
+              <span className="max-sm:hidden">Logout</span>
+            </NavDarkBtn>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto grid max-w-[1500px] grid-cols-[290px_minmax(0,1fr)] gap-5 px-5 py-5 max-lg:grid-cols-1">
-        <aside className="h-fit rounded-md border border-line bg-surface p-4 shadow-panel">
+      <main className="mx-auto app-main-grid max-w-[1500px] px-5 py-5">
+        <aside className={`app-sidebar h-fit rounded-md p-4${sidebarOpen ? " open" : ""}`} style={{ background: "#111827" }}>
           <button
-            className="mb-4 inline-flex w-full items-center justify-center gap-2 rounded-md bg-primary px-4 py-3 text-sm font-black text-white shadow-sm hover:bg-blue-800"
+            style={{
+              marginBottom: 16,
+              display: "inline-flex", width: "100%", alignItems: "center", justifyContent: "center", gap: 8,
+              background: "linear-gradient(135deg, #2563eb, #0891b2)",
+              color: "white", border: "none", borderRadius: 8,
+              padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+              boxShadow: "0 2px 12px rgba(37,99,235,0.3)",
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = "0.9"; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = "1"; }}
             onClick={() => {
               setActiveSiteId("");
               setActiveStage("input");
               setForm(emptyInput);
+              setSidebarOpen(false);
             }}
           >
-            <Globe2 size={17} />
+            <Globe2 size={15} />
             Create New Site
           </button>
 
           <button
-            className="mb-4 inline-flex w-full items-center justify-center gap-2 rounded-md border border-line bg-surface px-4 py-3 text-sm font-black text-ink shadow-sm transition hover:border-primary hover:text-primary"
+            style={{
+              marginBottom: 16,
+              display: "inline-flex", width: "100%", alignItems: "center", justifyContent: "center", gap: 8,
+              background: "#1a2235", border: "1px solid #243352", color: "#94a3b8",
+              borderRadius: 8, padding: "10px 16px", fontSize: 13, fontWeight: 700, cursor: "pointer",
+              transition: "border-color 0.15s, color 0.15s",
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.borderColor = "#3b82f6";
+              e.currentTarget.style.color = "#e2e8f0";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.borderColor = "#243352";
+              e.currentTarget.style.color = "#94a3b8";
+            }}
             onClick={() => navigate("/cloner")}
           >
-            <Copy size={17} />
+            <Copy size={15} />
             Workflow Cloner
           </button>
 
-          <div className="mb-5 space-y-2">
+          <div style={{ marginBottom: 20, display: "flex", flexDirection: "column", gap: 4 }}>
             {stages.map((stage, index) => {
               const Icon = stage.icon;
               const unlocked = !activeSite || index <= unlockedStageIndex(activeSite);
@@ -190,45 +273,76 @@ export default function App() {
               return (
                 <button
                   key={stage.id}
-                  className={[
-                    "flex w-full items-center justify-between rounded-md border px-3 py-2 text-left text-sm transition",
-                    selected ? "border-primary bg-primary/10 text-primary" : "border-transparent text-slate hover:border-line hover:bg-paper",
-                    unlocked ? "" : "cursor-not-allowed opacity-45"
-                  ].join(" ")}
+                  style={{
+                    display: "flex", width: "100%", alignItems: "center", justifyContent: "space-between",
+                    borderRadius: 6, padding: "7px 10px", fontSize: 13, textAlign: "left", cursor: unlocked ? "pointer" : "not-allowed",
+                    opacity: unlocked ? 1 : 0.45, transition: "background 0.15s, border-color 0.15s, color 0.15s",
+                    background: selected ? "rgba(59,130,246,0.12)" : "transparent",
+                    border: selected ? "1px solid rgba(59,130,246,0.25)" : "1px solid transparent",
+                    color: selected ? "#60a5fa" : "#64748b",
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!selected && unlocked) {
+                      e.currentTarget.style.background = "rgba(59,130,246,0.06)";
+                      e.currentTarget.style.color = "#94a3b8";
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!selected) {
+                      e.currentTarget.style.background = "transparent";
+                      e.currentTarget.style.color = "#64748b";
+                    }
+                  }}
                   disabled={!unlocked}
-                  onClick={() => setActiveStage(stage.id)}
+                  onClick={() => { setActiveStage(stage.id); setSidebarOpen(false); }}
                 >
-                  <span className="flex items-center gap-2 font-bold">
-                    <Icon size={16} />
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, fontWeight: 600 }}>
+                    <span
+                      style={{
+                        width: 18, height: 18, borderRadius: 9, fontSize: 10, fontWeight: 700,
+                        display: "grid", placeItems: "center", flexShrink: 0,
+                        background: selected ? "#3b82f6" : "#1a2235",
+                        border: selected ? "none" : "1px solid #243352",
+                        color: selected ? "white" : "#64748b",
+                      }}
+                    >
+                      {index + 1}
+                    </span>
+                    <Icon size={14} />
                     {stage.label}
                   </span>
-                  {!unlocked ? <Lock size={14} /> : <span className="text-xs font-black">{index + 1}</span>}
+                  {!unlocked ? <Lock size={12} style={{ color: "#475569" }} /> : null}
                 </button>
               );
             })}
           </div>
 
-          <div className="border-t border-line pt-4">
-            <p className="mb-2 text-xs font-black uppercase text-slate">Sites</p>
-            <div className="space-y-2">
+          <div style={{ borderTop: "1px solid #1e2d45", paddingTop: 16 }}>
+            <p style={{ marginBottom: 8, fontSize: 10, fontWeight: 700, textTransform: "uppercase", letterSpacing: "0.08em", color: "#475569" }}>
+              Sites
+            </p>
+            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
               {sites.length === 0 ? (
-                <p className="rounded-md bg-paper p-3 text-sm text-slate">No sites yet.</p>
+                <p style={{ fontSize: 13, color: "#475569" }}>No sites yet</p>
               ) : (
                 sites.map((site) => (
                   <button
                     key={site.id}
-                    className={[
-                      "w-full rounded-md border p-3 text-left transition",
-                      activeSiteId === site.id ? "border-primary bg-primary/10" : "border-line bg-surface hover:border-primary"
-                    ].join(" ")}
+                    style={{
+                      width: "100%", borderRadius: 6, padding: "10px 12px", textAlign: "left", cursor: "pointer",
+                      background: activeSiteId === site.id ? "rgba(59,130,246,0.1)" : "#1a2235",
+                      border: activeSiteId === site.id ? "1px solid rgba(59,130,246,0.3)" : "1px solid #243352",
+                      transition: "border-color 0.15s",
+                    }}
                     onClick={() => {
                       setActiveSiteId(site.id);
                       setActiveStage(nextBestStage(site));
+                      setSidebarOpen(false);
                     }}
                   >
-                    <span className="block text-sm font-black">{site.name}</span>
-                    <span className="mt-1 block truncate text-xs text-slate">{site.url}</span>
-                    <span className="mt-2 inline-flex rounded-sm bg-paper px-2 py-1 text-xs font-bold text-slate">{site.status}</span>
+                    <span style={{ display: "block", fontSize: 13, fontWeight: 700, color: "#e2e8f0" }}>{site.name}</span>
+                    <span style={{ display: "block", fontSize: 11, color: "#64748b", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", marginTop: 2 }}>{site.url}</span>
+                    <span style={{ marginTop: 6, display: "inline-flex", borderRadius: 4, background: "#0a0f1e", padding: "2px 6px", fontSize: 11, fontWeight: 600, color: "#64748b" }}>{site.status}</span>
                   </button>
                 ))
               )}
@@ -285,8 +399,8 @@ function InputPanel({
     <div className="rounded-md border border-line bg-surface p-6 shadow-shell">
       <div className="mb-6 flex items-start justify-between gap-4">
         <div>
-          <h2 className="text-2xl font-black">Create New Site</h2>
-          <p className="mt-1 max-w-2xl text-sm leading-6 text-slate">
+          <h2 style={{ fontSize: 20, fontWeight: 700, color: "#e2e8f0", margin: 0 }}>Create New Site</h2>
+          <p style={{ marginTop: 6, fontSize: 13, color: "#64748b" }}>
             Enter the required pipeline fields. Discovery starts immediately after creation.
           </p>
         </div>
@@ -360,11 +474,19 @@ function InputPanel({
 
       <div className="mt-6 flex justify-end">
         <button
-          className="inline-flex items-center gap-2 rounded-md bg-ink px-5 py-3 text-sm font-black text-white hover:bg-black disabled:cursor-not-allowed disabled:opacity-50"
+          style={{
+            display: "inline-flex", alignItems: "center", gap: 8,
+            background: "linear-gradient(135deg, #2563eb, #0891b2)",
+            color: "white", border: "none", height: 44, borderRadius: 8,
+            padding: "0 20px", fontSize: 14, fontWeight: 600, cursor: "pointer",
+            boxShadow: "0 2px 16px rgba(37,99,235,0.25)",
+            opacity: (!canSubmit || loading) ? 0.4 : 1,
+            pointerEvents: (!canSubmit || loading) ? "none" : "auto",
+          }}
           disabled={!canSubmit || loading}
           onClick={onSubmit}
         >
-          <Play size={17} />
+          <Play size={16} />
           Create and Discover
         </button>
       </div>
@@ -863,12 +985,41 @@ function SettingsPanel() {
   );
 }
 
+function NavDarkBtn({ icon, onClick, children }: { icon: ReactNode; onClick: () => void; children?: ReactNode }) {
+  return (
+    <button
+      style={{
+        background: "transparent", border: "1px solid #243352", color: "#94a3b8",
+        borderRadius: 7, padding: "5px 12px", fontSize: 13,
+        display: "inline-flex", alignItems: "center", gap: 6, cursor: "pointer",
+        transition: "border-color 0.15s, color 0.15s, box-shadow 0.15s",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.borderColor = "#3b82f6";
+        e.currentTarget.style.color = "#e2e8f0";
+        e.currentTarget.style.boxShadow = "0 0 8px rgba(59,130,246,0.2)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.borderColor = "#243352";
+        e.currentTarget.style.color = "#94a3b8";
+        e.currentTarget.style.boxShadow = "";
+      }}
+      onClick={onClick}
+    >
+      {icon}
+      {children}
+    </button>
+  );
+}
+
 function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-black text-ink">
+      <span style={{ display: "flex", alignItems: "center", gap: 5, marginBottom: 6, fontSize: 11, fontWeight: 600, textTransform: "uppercase", letterSpacing: "0.06em", color: "#64748b" }}>
         {label}
-        {required ? <span className="text-red-600"> *</span> : null}
+        {required ? (
+          <span style={{ width: 5, height: 5, borderRadius: "50%", background: "#ef4444", display: "inline-block", flexShrink: 0 }} />
+        ) : null}
       </span>
       {children}
     </label>

@@ -15,7 +15,7 @@ const storageKey = "new-site-dashboard-theme";
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
   const { session } = useAuth();
-  const [mode, setModeState] = useState<ThemeMode>(() => (localStorage.getItem(storageKey) as ThemeMode | null) ?? "system");
+  const [mode, setModeState] = useState<ThemeMode>(() => (localStorage.getItem(storageKey) as ThemeMode | null) ?? "dark");
   const [systemDark, setSystemDark] = useState(() => window.matchMedia("(prefers-color-scheme: dark)").matches);
 
   const resolved = mode === "system" ? (systemDark ? "dark" : "light") : mode;

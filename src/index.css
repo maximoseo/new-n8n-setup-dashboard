@@ -3,28 +3,29 @@
 @tailwind utilities;
 
 :root {
-  --color-ink: #111827;
-  --color-slate: #475569;
-  --color-paper: #f7f8fb;
-  --color-line: #d9dee8;
-  --color-surface: #ffffff;
-  color: var(--color-ink);
-  background: var(--color-paper);
-  font-family:
-    "Segoe UI",
-    -apple-system,
-    BlinkMacSystemFont,
-    Roboto,
-    Arial,
-    sans-serif;
-}
-
-.dark {
+  /* Legacy tokens – used by Tailwind utility classes throughout the app */
   --color-ink: #e2e8f0;
-  --color-slate: #94a3b8;
-  --color-paper: #0f172a;
-  --color-line: #1e293b;
-  --color-surface: #172033;
+  --color-slate: #64748b;
+  --color-paper: #0a0f1e;
+  --color-line: #1e2d45;
+  --color-surface: #111827;
+
+  /* Dark-theme design tokens */
+  --bg: #0a0f1e;
+  --surface: #111827;
+  --surface2: #1a2235;
+  --border: #1e2d45;
+  --border2: #243352;
+  --text: #e2e8f0;
+  --muted: #64748b;
+  --accent: #3b82f6;
+  --accent-glow: rgba(59, 130, 246, 0.15);
+  --success: #10b981;
+  --danger: #ef4444;
+
+  color: var(--text);
+  background: var(--bg);
+  font-family: "Segoe UI", -apple-system, BlinkMacSystemFont, Roboto, Arial, sans-serif;
 }
 
 * {
@@ -34,16 +35,43 @@
 body {
   min-width: 320px;
   margin: 0;
-  background:
-    linear-gradient(180deg, rgba(29, 78, 216, 0.08), rgba(15, 159, 143, 0.06) 36%, transparent 62%),
-    var(--color-paper);
-  color: var(--color-ink);
+  background: var(--bg);
+  color: var(--text);
 }
 
-.dark body {
-  background:
-    linear-gradient(180deg, rgba(29, 78, 216, 0.08), rgba(15, 159, 143, 0.04) 36%, transparent 62%),
-    var(--color-paper);
+/* App layout — responsive sidebar grid */
+.app-main-grid {
+  display: grid;
+  grid-template-columns: 220px minmax(0, 1fr);
+  gap: 20px;
+}
+
+@media (max-width: 900px) {
+  .app-main-grid {
+    grid-template-columns: 180px minmax(0, 1fr);
+  }
+}
+
+@media (max-width: 680px) {
+  .app-main-grid {
+    grid-template-columns: 1fr;
+  }
+  .app-sidebar {
+    position: fixed;
+    inset: 0 auto 0 0;
+    width: 220px !important;
+    z-index: 45;
+    overflow-y: auto;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    border-right: 1px solid #1e2d45;
+  }
+  .app-sidebar.open {
+    transform: translateX(0);
+  }
+  .sidebar-hamburger {
+    display: flex !important;
+  }
 }
 
 button,
@@ -68,7 +96,19 @@ code {
 
 @layer components {
   .input {
-    @apply h-11 w-full rounded-lg border border-line bg-surface px-3 text-sm font-semibold text-ink outline-none transition-all duration-200 placeholder:text-slate focus:border-blue-500 focus:ring-4 focus:ring-blue-500/15 dark:focus:ring-blue-500/25;
+    @apply h-10 w-full px-3 text-sm font-semibold outline-none transition-all duration-200;
+    background: var(--surface2);
+    border: 1px solid var(--border2);
+    color: var(--text);
+    border-radius: 7px;
+  }
+  .input::placeholder {
+    color: #475569;
+  }
+  .input:focus {
+    border-color: var(--accent);
+    box-shadow: 0 0 0 3px var(--accent-glow);
+    outline: none;
   }
 
   .btn-primary {
