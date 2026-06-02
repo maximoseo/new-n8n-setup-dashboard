@@ -36,7 +36,7 @@ const excelUploads = new Map<string, ParsedExcel>();
 
 class SessionError extends Error {}
 
-/** An error carrying an HTTP status + a user-facing (Hebrew) message, with the raw cause in `detail`. */
+/** An error carrying an HTTP status + a user-facing (English) message, with the raw cause in `detail`. */
 class ClonerError extends Error {
   readonly status: number;
   readonly detail?: string;
@@ -48,31 +48,31 @@ class ClonerError extends Error {
   }
 }
 
-/** Map a raw upstream error message to an HTTP status + a Hebrew, operator-facing message. */
+/** Map a raw upstream error message to an HTTP status + an English, operator-facing message. */
 function describeError(raw: string, action?: string): { message: string; status: number } {
   const suffix = action ? ` (${action})` : "";
   if (/timeout|aborted|aborterror|timed out/i.test(raw)) {
-    return { status: 504, message: `הפעולה מול n8n חרגה מזמן ההמתנה (30 שניות)${suffix}. נסה שוב.` };
+    return { status: 504, message: `n8n request timed out (30s)${suffix}. Try again.` };
   }
   if (/\b(401|403)\b|unauthorized|forbidden|invalid api key/i.test(raw)) {
-    return { status: 401, message: `אימות מול n8n נכשל${suffix} — בדוק שכתובת ה-Instance וה-API Key נכונים.` };
+    return { status: 401, message: `Authentication with n8n failed${suffix} — check that your Instance URL and API Key are correct.` };
   }
   if (/\b404\b|not found/i.test(raw)) {
-    return { status: 404, message: `המשאב לא נמצא ב-n8n${suffix} — ייתכן שהוורקפלואו נמחק.` };
+    return { status: 404, message: `Resource not found in n8n${suffix} — the workflow may have been deleted.` };
   }
   if (/\b429\b|rate limit|too many requests/i.test(raw)) {
-    return { status: 429, message: `n8n הגביל את קצב הבקשות${suffix}. נסה שוב בעוד מספר שניות.` };
+    return { status: 429, message: `n8n rate limit reached${suffix}. Try again in a few seconds.` };
   }
   if (/econnrefused|enotfound|eai_again|fetch failed|network|getaddrinfo/i.test(raw)) {
-    return { status: 502, message: `לא ניתן להגיע לשרת n8n${suffix} — בדוק את כתובת ה-Instance ואת החיבור לרשת.` };
+    return { status: 502, message: `Cannot reach n8n server${suffix} — check the Instance URL and your network connection.` };
   }
   if (/google/i.test(raw)) {
-    return { status: 502, message: `פעולת Google Sheets נכשלה${suffix} — בדוק את ההרשאות וה-Credentials של Google.` };
+    return { status: 502, message: `Google Sheets operation failed${suffix} — check your Google permissions and credentials.` };
   }
-  return { status: 502, message: `פעולה חיצונית נכשלה${suffix}: ${raw}` };
+  return { status: 502, message: `External operation failed${suffix}: ${raw}` };
 }
 
-/** Run an external (n8n / Google) API call, translating low-level failures into Hebrew ClonerErrors. */
+/** Run an external (n8n / Google) API call, translating low-level failures into English ClonerErrors. */
 async function runExternal<T>(action: string, fn: () => Promise<T>): Promise<T> {
   try {
     return await fn();
@@ -100,7 +100,7 @@ function sanitizeMapping(mapping: SiteMapping): SiteMapping {
 
 /** The authenticated Supabase user id (set by authMiddleware). */
 function requireUserId(request: Request): string {
-  if (!request.userId) throw new SessionError("נדרשת התחברות מחדש — לא זוהה משתמש מאומת");
+  if (!request.userId) throw new SessionError("Re-authentication required — no authenticated user found");
   return request.userId;
 }
 
@@ -188,7 +188,7 @@ function handle(fn: (request: Request, response: Response) => Promise<void>): Re
         response.status(error.status).json({ ok: false, error: error.message, detail: error.detail });
         return;
       }
-      // Fallback: translate any other upstream failure into a Hebrew message (raw kept in `detail`).
+      // Fallback: translate any other upstream failure into an English message (raw kept in `detail`).
       const raw = error instanceof Error ? error.message : "Unexpected error";
       const { message, status } = describeError(raw);
       response.status(status).json({ ok: false, error: message, detail: raw });
@@ -198,13 +198,13 @@ function handle(fn: (request: Request, response: Response) => Promise<void>): Re
 
 function getSession(request: Request): ClonerSession {
   const id = request.header("x-cloner-session");
-  if (!id) throw new SessionError("חסר חיבור פעיל ל-n8n — התחבר תחילה (שלב 1)");
+  if (!id) throw new SessionError("No active n8n connection — connect first (Step 1)");
   const session = sessions.get(id);
-  if (!session) throw new SessionError("הסשן לא נמצא — התחבר מחדש ל-n8n");
+  if (!session) throw new SessionError("Session not found — reconnect to n8n");
   if (Date.now() - session.createdAt > SESSION_TTL_MS) {
     sessions.delete(id);
     excelUploads.delete(id);
-    throw new SessionError("פג תוקף הסשן — התחבר מחדש ל-n8n");
+    throw new SessionError("Session expired — reconnect to n8n");
   }
   return session;
 }
@@ -272,8 +272,8 @@ clonerRouter.post(
   handle(async (request, response) => {
     const { instanceUrl, apiKey } = connectSchema.parse(request.body);
     const client = new N8nClient(instanceUrl, apiKey);
-    await runExternal("בדיקת חיבור", () => client.testConnection());
-    const workflows = await runExternal("טעינת רשימת הוורקפלואוים", () => client.listAllWorkflows());
+    await runExternal("Testing connection", () => client.testConnection());
+    const workflows = await runExternal("Loading workflow list", () => client.listAllWorkflows());
 
     const id = randomUUID();
     sessions.set(id, { id, instanceUrl, apiKey, createdAt: Date.now() });
@@ -287,7 +287,7 @@ clonerRouter.get(
   handle(async (request, response) => {
     const client = clientFor(request);
     const search = typeof request.query.search === "string" ? request.query.search.toLowerCase() : "";
-    const workflows = await runExternal("טעינת רשימת הוורקפלואוים", () => client.listAllWorkflows());
+    const workflows = await runExternal("Loading workflow list", () => client.listAllWorkflows());
 
     const summaries: N8nWorkflowSummary[] = workflows.map((workflow) => {
       const analysis = analyzeWorkflow(workflow);
@@ -314,7 +314,7 @@ clonerRouter.get(
   handle(async (request, response) => {
     const client = clientFor(request);
     const workflowId = Array.isArray(request.params.id) ? request.params.id[0] ?? "" : request.params.id;
-    const workflow = await runExternal("טעינת הוורקפלואו", () => client.getWorkflow(workflowId));
+    const workflow = await runExternal("Loading workflow", () => client.getWorkflow(workflowId));
     response.json({ ok: true, workflow, analysis: analyzeWorkflow(workflow) });
   })
 );
@@ -329,9 +329,9 @@ clonerRouter.post(
       workflow = body.workflow as unknown as N8nWorkflow;
     } else if (body.workflowId) {
       const workflowId = body.workflowId;
-      workflow = await runExternal("טעינת הוורקפלואו", () => clientFor(request).getWorkflow(workflowId));
+      workflow = await runExternal("Loading workflow", () => clientFor(request).getWorkflow(workflowId));
     } else {
-      response.status(400).json({ ok: false, error: "יש לספק workflowId או workflow" });
+      response.status(400).json({ ok: false, error: "Must provide workflowId or workflow" });
       return;
     }
     response.json({ ok: true, analysis: analyzeWorkflow(workflow) });
@@ -345,7 +345,7 @@ clonerRouter.post(
     const body = previewSchema.parse(request.body);
     const session = getSession(request);
     const client = new N8nClient(session.instanceUrl, session.apiKey);
-    const source = await runExternal("טעינת וורקפלואו המקור", () => client.getWorkflow(body.sourceWorkflowId));
+    const source = await runExternal("Loading source workflow", () => client.getWorkflow(body.sourceWorkflowId));
     const mapping: SiteMapping = body.mapping;
 
     const { workflow, changes } = cloneWorkflow(source, mapping);
@@ -374,7 +374,7 @@ clonerRouter.post(
     const session = getSession(request);
     const userId = request.userId ?? "";
     const client = new N8nClient(session.instanceUrl, session.apiKey);
-    const source = await runExternal("טעינת וורקפלואו המקור", () => client.getWorkflow(body.sourceWorkflowId));
+    const source = await runExternal("Loading source workflow", () => client.getWorkflow(body.sourceWorkflowId));
     const mapping: SiteMapping = body.mapping;
     const options = body.options ?? {};
 
@@ -408,11 +408,11 @@ clonerRouter.post(
       // Phase A — create the Google Sheet from the uploaded Excel and rewire the mapping.
       if (options.createSheet) {
         const excel = excelUploads.get(session.id);
-        if (!excel) throw new ClonerError("לא נמצא קובץ Excel לסשן זה — העלה קובץ תחילה (שלב 3)", { status: 400 });
-        const accessToken = await runExternal("הפקת אסימון Google", () => getGoogleAccessToken());
+        if (!excel) throw new ClonerError("No Excel file found for this session — upload a file first (Step 3)", { status: 400 });
+        const accessToken = await runExternal("Getting Google token", () => getGoogleAccessToken());
         const sheets = new GoogleSheetsClient(accessToken);
         const title = options.sheetTitle || defaultSheetTitle(mapping);
-        const created = await runExternal("יצירת Google Sheet", () =>
+        const created = await runExternal("Creating Google Sheet", () =>
           sheets.createFromExcel(excel, title, mapping.sheetTabMappings, options.shareWithEmail)
         );
 
@@ -434,7 +434,7 @@ clonerRouter.post(
 
       // Phase A.5 — create a fresh WordPress credential when full details are supplied.
       if (mapping.wpUrl && mapping.wpUsername && mapping.wpAppPassword) {
-        const credential = await runExternal("יצירת אישור WordPress", () =>
+        const credential = await runExternal("Creating WordPress credential", () =>
           client.createCredential({
             name: `${cleanLabel(mapping.newDomain)} - WordPress`,
             type: "wordpressApi",
@@ -447,14 +447,14 @@ clonerRouter.post(
 
       // Phase B — transform the workflow JSON and create it on the instance.
       const { workflow: clonedWorkflow, changes } = cloneWorkflow(source, mapping);
-      const createdWorkflow = await runExternal("יצירת הוורקפלואו המשוכפל", () => client.createWorkflow(clonedWorkflow));
+      const createdWorkflow = await runExternal("Creating cloned workflow", () => client.createWorkflow(clonedWorkflow));
       result.changes = changes;
 
       // Phase C — activate the new workflow when requested.
       let active = false;
       const newId = createdWorkflow.id;
       if (options.activate && newId) {
-        await runExternal("הפעלת הוורקפלואו", () => client.activateWorkflow(newId));
+        await runExternal("Activating workflow", () => client.activateWorkflow(newId));
         active = true;
       }
 
@@ -521,7 +521,7 @@ clonerRouter.get(
     const id = Array.isArray(request.params.id) ? request.params.id[0] ?? "" : request.params.id;
     const job = await getJob(id, userId);
     if (!job) {
-      response.status(404).json({ ok: false, error: "השכפול לא נמצא" });
+      response.status(404).json({ ok: false, error: "Clone job not found" });
       return;
     }
     response.json({ ok: true, job });
@@ -536,7 +536,7 @@ clonerRouter.post(
     const session = getSession(request);
     const file = request.file;
     if (!file) {
-      response.status(400).json({ ok: false, error: "לא הועלה קובץ (יש להשתמש בשדה multipart בשם 'file')" });
+      response.status(400).json({ ok: false, error: "No file uploaded (use multipart field named 'file')" });
       return;
     }
 

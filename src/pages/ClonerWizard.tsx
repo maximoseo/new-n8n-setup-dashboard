@@ -13,6 +13,7 @@ import {
   Globe2,
   History,
   Home,
+  Info,
   KeyRound,
   Link2,
   Loader2,
@@ -52,11 +53,11 @@ import type {
 } from "../../shared/types";
 
 const STEPS = [
-  { id: 1, label: "חיבור ל-n8n", icon: PlugZap },
-  { id: 2, label: "בחירת תבנית", icon: Search },
-  { id: 3, label: "העלאת Excel", icon: FileSpreadsheet },
-  { id: 4, label: "פרטי אתר חדש", icon: Globe2 },
-  { id: 5, label: "תוצאות", icon: CheckCircle2 }
+  { id: 1, label: "Connect", icon: PlugZap },
+  { id: 2, label: "Select", icon: Search },
+  { id: 3, label: "Upload", icon: FileSpreadsheet },
+  { id: 4, label: "Configure", icon: Globe2 },
+  { id: 5, label: "Clone", icon: CheckCircle2 }
 ] as const;
 
 const DEFAULT_INSTANCE_URL = "https://websiseo.app.n8n.cloud/";
@@ -189,7 +190,7 @@ export default function ClonerWizard() {
   }, [workflows, search, domainFilter]);
 
   function fail(err: unknown) {
-    setError(err instanceof Error ? err.message : "אירעה שגיאה בלתי צפויה");
+    setError(err instanceof Error ? err.message : "An unexpected error occurred");
   }
 
   function effectiveChoice(sheetName: string): string {
@@ -254,11 +255,11 @@ export default function ClonerWizard() {
 
   async function handleConnect() {
     if (!instanceUrl.trim() || !apiKey.trim()) {
-      setError("יש להזין כתובת Instance ו-API Key");
+      setError("Please enter both the Instance URL and API Key");
       return;
     }
     setError("");
-    setBusy("מתחבר ל-n8n ובודק את החיבור…");
+    setBusy("Connecting to n8n and verifying…");
     try {
       const connect = await clonerConnect(instanceUrl.trim(), apiKey.trim());
       setSessionId(connect.sessionId);
@@ -279,7 +280,7 @@ export default function ClonerWizard() {
     setSelectedWorkflowId(workflow.id);
     setAnalysis(null);
     setError("");
-    setBusy(`מנתח את "${workflow.name}"…`);
+    setBusy(`Analyzing "${workflow.name}"…`);
     try {
       const detail = await clonerGetWorkflow(sessionId, workflow.id);
       setAnalysis(detail.analysis);
@@ -298,11 +299,11 @@ export default function ClonerWizard() {
 
   async function handleFile(file: File) {
     if (!file.name.toLowerCase().endsWith(".xlsx")) {
-      setError("יש להעלות קובץ ‎.xlsx‎ בלבד");
+      setError("Only .xlsx files are supported");
       return;
     }
     setError("");
-    setBusy(`מעלה ומנתח את ${file.name}…`);
+    setBusy(`Uploading and parsing ${file.name}…`);
     try {
       const uploaded = await clonerUploadExcel(sessionId, file);
       setExcelName(uploaded.fileName);
@@ -345,39 +346,39 @@ export default function ClonerWizard() {
 
   function testWordPress() {
     if (!wpUrl.trim() || !/^https?:\/\//i.test(wpUrl.trim())) {
-      setWpTest({ ok: false, message: "כתובת WordPress חסרה או לא תקינה (חייבת להתחיל ב-http/https)" });
+      setWpTest({ ok: false, message: "WordPress URL is missing or invalid (must start with http/https)" });
       return;
     }
     if (!wpUsername.trim() || !wpAppPassword.trim()) {
-      setWpTest({ ok: false, message: "יש למלא שם משתמש ו-App Password" });
+      setWpTest({ ok: false, message: "Please enter a username and App Password" });
       return;
     }
-    setWpTest({ ok: true, message: "✓ הפרטים מלאים ותקינים. החיבור ל-WordPress ייבדק בעת השכפול." });
+    setWpTest({ ok: true, message: "✓ Details are valid. WordPress connection will be verified during cloning." });
   }
 
   function testSheets() {
     if (!gsheetsCredentialId) {
-      setSheetsTest({ ok: false, message: "יש לבחור אישור Google Sheets OAuth2" });
+      setSheetsTest({ ok: false, message: "Please select a Google Sheets OAuth2 credential" });
       return;
     }
     if (!sheetTitle.trim()) {
-      setSheetsTest({ ok: false, message: "יש להזין כותרת לגיליון החדש" });
+      setSheetsTest({ ok: false, message: "Please enter a title for the new sheet" });
       return;
     }
     if (buildSheetTabMappings().length === 0) {
-      setSheetsTest({ ok: false, message: "אין גיליונות למיפוי — חזרה לשלב 3" });
+      setSheetsTest({ ok: false, message: "No sheets to map — go back to Step 3" });
       return;
     }
-    setSheetsTest({ ok: true, message: "✓ נבחר אישור והוגדרה כותרת. הגיליון ייווצר בעת השכפול." });
+    setSheetsTest({ ok: true, message: "✓ Credential selected and title set. Sheet will be created during cloning." });
   }
 
   async function handlePreview() {
     if (!newDomain.trim()) {
-      setError("יש להזין דומיין חדש");
+      setError("Please enter a new domain");
       return;
     }
     setError("");
-    setBusy("מכין תצוגה מקדימה של השינויים…");
+    setBusy("Preparing preview of changes…");
     try {
       const response = await clonerPreview(sessionId, selectedWorkflowId, buildMapping());
       setPreview(response.preview);
@@ -416,7 +417,7 @@ export default function ClonerWizard() {
 
   async function handleClone() {
     setError("");
-    setBusy("משכפל את הוורקפלואו — יוצר גיליון, אישורים ומפעיל…");
+    setBusy("Cloning workflow — creating sheet, credentials, and activating…");
     try {
       const options: CloneOptions = {
         activate,
@@ -429,14 +430,14 @@ export default function ClonerWizard() {
       const ok = response.ok && Boolean(response.workflow);
       setToast({
         tone: ok ? "success" : "error",
-        message: ok ? "הוורקפלואו שוכפל בהצלחה" : "השכפול הסתיים עם שגיאות — בדוק את התוצאות"
+        message: ok ? "Workflow cloned successfully!" : "Clone completed with errors — check the results"
       });
       // Refresh history so the new clone appears immediately.
       setHistoryLoaded(false);
       if (historyOpen) void loadJobs();
     } catch (err) {
       fail(err);
-      setToast({ tone: "error", message: err instanceof Error ? err.message : "השכפול נכשל" });
+      setToast({ tone: "error", message: err instanceof Error ? err.message : "Clone failed" });
     } finally {
       setBusy("");
     }
@@ -471,7 +472,7 @@ export default function ClonerWizard() {
     setNewDomain(value);
     if (!titleEdited) {
       const clean = cleanDomain(value);
-      setSheetTitle(clean ? `${clean} - N8N אוטומציות` : "");
+      setSheetTitle(clean ? `${clean} - N8N Automations` : "");
     }
   }
 
@@ -484,29 +485,29 @@ export default function ClonerWizard() {
   };
 
   return (
-    <div dir="rtl" className="min-h-screen bg-paper text-ink">
+    <div dir="ltr" className="min-h-screen bg-paper text-ink antialiased">
       <header className="sticky top-0 z-20 border-b border-line bg-surface backdrop-blur">
-        <div className="mx-auto flex max-w-[1100px] items-center justify-between gap-3 px-5 py-4">
+        <div className="mx-auto flex max-w-[1200px] items-center justify-between gap-3 px-4 py-4 sm:px-6">
           <div className="flex items-center gap-3">
-            <div className="grid h-10 w-10 place-items-center rounded-md bg-ink text-sm font-black text-paper">
+            <div className="grid h-10 w-10 place-items-center rounded-lg bg-ink text-sm font-black text-paper">
               <Copy size={18} />
             </div>
             <div>
-              <h1 className="text-lg font-black">שכפול וורקפלואו n8n + Google Sheets</h1>
-              <p className="text-sm text-slate">אשף בן 5 שלבים לשכפול אוטומציה לאתר חדש</p>
+              <h1 className="text-base font-black sm:text-lg">n8n Workflow Cloner + Google Sheets</h1>
+              <p className="text-xs text-slate sm:text-sm">5-step wizard to clone automation workflows to a new site</p>
             </div>
           </div>
           <div className="flex items-center gap-2">
             <ThemeToggle />
             <button className="btn-secondary" onClick={() => navigate("/")}>
               <Home size={17} />
-              דף הבית
+              <span className="max-sm:hidden">Dashboard</span>
             </button>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1100px] px-5 py-6">
+      <main className="mx-auto max-w-[1200px] px-4 py-6 sm:px-6 lg:px-8">
         <Stepper current={step} />
 
         {error ? (
@@ -551,9 +552,13 @@ export default function ClonerWizard() {
     const minutes = expiresInMs ? Math.round(expiresInMs / 60000) : 30;
     return (
       <>
-      <Card icon={Link2} title="שלב 1: חיבור לחשבון n8n">
-        <div className="grid gap-4">
-          <Field label="כתובת Instance" required>
+      <Card
+        icon={Link2}
+        title="Step 1: Connect to n8n"
+        subtitle="Connect your n8n automation platform. You’ll need your API key from n8n Settings → API."
+      >
+        <div className="space-y-5">
+          <Field label="Instance URL" required helpText="Find this in your n8n browser URL bar.">
             <input
               className="input"
               dir="ltr"
@@ -562,7 +567,7 @@ export default function ClonerWizard() {
               onChange={(event) => setInstanceUrl(event.target.value)}
             />
           </Field>
-          <Field label="API Key" required>
+          <Field label="API Key" required helpText="Generate from n8n → Settings → API → Create API Key.">
             <input
               className="input"
               dir="ltr"
@@ -574,24 +579,24 @@ export default function ClonerWizard() {
             />
           </Field>
           <p className="flex items-center gap-2 text-xs font-bold text-slate">
-            <KeyRound size={14} />
-            המפתח נשמר בזיכרון בלבד למשך הסשן ולא נשמר בדפדפן (localStorage).
+            <KeyRound size={14} className="shrink-0" />
+            Your API key is kept in memory only for this session and is never stored in the browser.
           </p>
           <div>
             <button className="btn-primary" disabled={Boolean(busy)} onClick={() => void handleConnect()}>
               {busy ? <Loader2 size={17} className="animate-spin" /> : <PlugZap size={17} />}
-              בדוק חיבור
+              Connect
             </button>
           </div>
 
           {connected ? (
-            <div className="rounded-md border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950/40">
+            <div className="rounded-xl border border-green-200 bg-green-50 p-4 dark:border-green-900 dark:bg-green-950/40">
               <p className="flex items-center gap-2 font-black text-green-700 dark:text-green-200">
                 <CheckCircle2 size={18} />
-                חיבור הצליח! נמצאו {workflowCount ?? workflows.length} וורקפלואוים
+                Connected! Found {workflowCount ?? workflows.length} workflow(s)
               </p>
               <p className="mt-1 text-sm font-bold text-green-700/80 dark:text-green-200/80">
-                ⏱️ החיבור יפוג בעוד כ-{minutes} דקות
+                ⏱️ Connection expires in ~{minutes} minutes
               </p>
             </div>
           ) : null}
@@ -599,7 +604,7 @@ export default function ClonerWizard() {
         <WizardFooter
           onNext={() => setStep(2)}
           nextDisabled={!canAdvanceFrom[1]}
-          nextLabel="הבא"
+          nextLabel="Next"
         />
       </Card>
 
@@ -617,19 +622,23 @@ export default function ClonerWizard() {
   // ---- Step 2: Select template --------------------------------------------
   function renderSelect() {
     return (
-      <Card icon={Search} title="שלב 2: בחירת וורקפלואו מקור">
+      <Card
+        icon={Search}
+        title="Step 2: Select Source Workflow"
+        subtitle="Select the workflow template you want to clone. This workflow will be adapted for your new site."
+      >
         <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_240px]">
           <div className="relative">
-            <Search size={16} className="pointer-events-none absolute inset-y-0 end-3 my-auto text-slate" />
+            <Search size={16} className="pointer-events-none absolute inset-y-0 start-3 my-auto text-slate" />
             <input
-              className="input pe-9"
-              placeholder="חיפוש לפי שם או דומיין…"
+              className="input ps-9"
+              placeholder="Search by name or domain…"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
             />
           </div>
           <select className="input" value={domainFilter} onChange={(event) => setDomainFilter(event.target.value)}>
-            <option value="">כל הדומיינים ({allDomains.length})</option>
+            <option value="">All domains ({allDomains.length})</option>
             {allDomains.map((domain) => (
               <option key={domain} value={domain}>
                 {domain}
@@ -639,9 +648,9 @@ export default function ClonerWizard() {
         </div>
 
         <div className="mt-4 grid gap-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.1fr)]">
-          <div className="max-h-[520px] overflow-auto rounded-md border border-line">
+          <div className="max-h-[520px] overflow-auto rounded-xl border border-line">
             {filteredWorkflows.length === 0 ? (
-              <p className="p-4 text-sm text-slate">לא נמצאו וורקפלואוים תואמים.</p>
+              <p className="p-4 text-sm text-slate">No matching workflows found.</p>
             ) : (
               filteredWorkflows.map((workflow) => {
                 const selected = workflow.id === selectedWorkflowId;
@@ -651,21 +660,21 @@ export default function ClonerWizard() {
                     onClick={() => void handleSelectWorkflow(workflow)}
                     className={[
                       "flex w-full items-center justify-between gap-3 border-b border-line px-4 py-3 text-start transition last:border-b-0",
-                      selected ? "bg-primary/10" : "hover:bg-paper"
+                      selected ? "border-l-4 border-l-primary bg-primary/10" : "hover:bg-paper"
                     ].join(" ")}
                   >
                     <span className="min-w-0">
-                      <span className="block truncate text-sm font-black">{workflow.name || "(ללא שם)"}</span>
+                      <span className="block truncate text-sm font-black">{workflow.name || "(unnamed)"}</span>
                       <span className="mt-0.5 block truncate text-xs text-slate">
-                        {workflow.domains.length ? workflow.domains.join(", ") : "ללא דומיין מזוהה"}
+                        {workflow.domains.length ? workflow.domains.join(", ") : "No domain detected"}
                       </span>
                     </span>
                     <span className="flex shrink-0 items-center gap-2">
-                      <span className="rounded-sm bg-paper px-2 py-1 text-xs font-bold text-slate">{workflow.nodeCount} nodes</span>
+                      <span className="rounded-md bg-paper px-2 py-1 text-xs font-bold text-slate">{workflow.nodeCount} nodes</span>
                       {workflow.active ? (
                         <CheckCircle2 size={16} className="text-green-600" />
                       ) : (
-                        <span className="text-xs font-bold text-slate">כבוי</span>
+                        <span className="text-xs font-bold text-slate">Inactive</span>
                       )}
                     </span>
                   </button>
@@ -674,12 +683,12 @@ export default function ClonerWizard() {
             )}
           </div>
 
-          <div className="rounded-md border border-line bg-paper p-4">
+          <div className="rounded-xl border border-line bg-paper p-4">
             {analysis ? (
               <AnalysisView analysis={analysis} />
             ) : (
               <p className="grid h-full min-h-[200px] place-items-center text-center text-sm text-slate">
-                בחר/י וורקפלואו מהרשימה כדי לראות ניתוח מפורט של ה-nodes.
+                Select a workflow from the list to see a detailed node analysis.
               </p>
             )}
           </div>
@@ -697,11 +706,15 @@ export default function ClonerWizard() {
   // ---- Step 3: Upload Excel ------------------------------------------------
   function renderExcel() {
     return (
-      <Card icon={FileSpreadsheet} title="שלב 3: העלאת קובץ מחקר מילות מפתח">
+      <Card
+        icon={FileSpreadsheet}
+        title="Step 3: Upload Keyword Research File"
+        subtitle="Upload your keyword research Excel file. Each sheet will become a tab in the new Google Sheet."
+      >
         <div
           role="button"
           tabIndex={0}
-          aria-label="העלאת קובץ Excel"
+          aria-label="Upload Excel file"
           onClick={() => fileInputRef.current?.click()}
           onKeyDown={(event) => {
             if (event.key === "Enter" || event.key === " ") {
@@ -717,46 +730,47 @@ export default function ClonerWizard() {
           onDrop={onDrop}
           className={[
             "focus:outline-none focus:ring-4 focus:ring-blue-100 dark:focus:ring-blue-950",
-            "grid cursor-pointer place-items-center gap-2 rounded-md border-2 border-dashed p-10 text-center transition",
-            dragging ? "border-primary bg-primary/5" : "border-line bg-paper hover:border-primary"
+            "grid cursor-pointer place-items-center gap-2 rounded-xl border-2 border-dashed p-12 text-center transition",
+            dragging ? "border-primary bg-primary/10 ring-4 ring-primary/10" : "border-line bg-paper hover:border-primary hover:bg-primary/5"
           ].join(" ")}
         >
-          <Upload size={32} className="text-primary" />
-          <p className="font-black">גרור קובץ ‎.xlsx‎ לכאן</p>
-          <p className="text-sm text-slate">או לחץ לבחירת קובץ</p>
+          <Upload size={40} className="text-primary" />
+          <p className="text-base font-black">Drag &amp; drop your .xlsx file here</p>
+          <p className="text-sm text-slate">or click to browse</p>
+          <p className="text-xs text-slate">Supports: .xlsx files up to 50MB</p>
           <input ref={fileInputRef} type="file" accept=".xlsx" className="hidden" onChange={onFileInput} />
         </div>
 
         {excelName ? (
           <p className="mt-3 flex items-center gap-2 text-sm font-black text-green-700 dark:text-green-300">
             <CheckCircle2 size={16} />
-            קובץ הועלה: {excelName}
+            File uploaded: {excelName}
           </p>
         ) : null}
 
         {uploadedSheets.length > 0 ? (
           <div className="mt-4 space-y-3">
-            <p className="text-sm font-black text-slate">גיליונות שזוהו</p>
+            <p className="text-sm font-black text-slate">Detected Sheets ({uploadedSheets.length})</p>
             {uploadedSheets.map((sheet) => {
               const rows = previewRows[sheet.name] ?? [];
               return (
-                <div key={sheet.name} className="rounded-md border border-line bg-surface p-4">
+                <div key={sheet.name} className="rounded-xl border border-line bg-surface p-4">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <p className="flex items-center gap-2 font-black">
                       <Table2 size={16} className="text-primary" />
                       {sheet.name}
                     </p>
-                    <span className="rounded-sm bg-paper px-2 py-1 text-xs font-bold text-slate">{sheet.rowCount} שורות</span>
+                    <span className="rounded-md bg-paper px-2 py-1 text-xs font-bold text-slate">{sheet.rowCount} rows</span>
                   </div>
                   {sheet.columns.length ? (
                     <p className="mt-2 text-xs text-slate">
-                      <span className="font-bold">עמודות: </span>
+                      <span className="font-bold">Columns: </span>
                       {sheet.columns.join(" | ")}
                     </p>
                   ) : null}
 
                   {rows.length ? (
-                    <div className="mt-3 overflow-auto rounded-sm border border-line">
+                    <div className="mt-3 overflow-auto rounded-md border border-line">
                       <table className="w-full border-collapse text-xs">
                         <tbody>
                           {rows.map((row, rowIndex) => (
@@ -774,7 +788,7 @@ export default function ClonerWizard() {
                   ) : null}
 
                   <label className="mt-3 flex flex-wrap items-center gap-2 text-sm">
-                    <span className="font-bold text-slate">↳ מיפוי לגיליון:</span>
+                    <span className="font-bold text-slate">↳ Map to sheet tab:</span>
                     <select
                       className="input h-9 w-auto"
                       value={effectiveChoice(sheet.name)}
@@ -785,16 +799,16 @@ export default function ClonerWizard() {
                           {tab.name}
                         </option>
                       ))}
-                      <option value={NEW_TAB}>צור גיליון חדש "{sheet.name}"</option>
-                      <option value={SKIP_TAB}>אל תכלול גיליון זה</option>
+                      <option value={NEW_TAB}>Create new tab "{sheet.name}"</option>
+                      <option value={SKIP_TAB}>Skip this sheet</option>
                     </select>
                   </label>
                 </div>
               );
             })}
-            <p className="flex items-center gap-2 rounded-md border border-line bg-paper p-3 text-xs font-bold text-slate">
-              <Database size={14} />
-              המערכת תיצור Google Sheet חדש עם אותם טאבים ותעתיק את הנתונים מהאקסל.
+            <p className="flex items-center gap-2 rounded-xl border border-line bg-paper p-3 text-xs font-bold text-slate">
+              <Database size={14} className="shrink-0" />
+              A new Google Sheet will be created with matching tabs, and data will be copied from your Excel file.
             </p>
           </div>
         ) : null}
@@ -807,14 +821,18 @@ export default function ClonerWizard() {
   // ---- Step 4: New site details -------------------------------------------
   function renderDetails() {
     return (
-      <Card icon={Globe2} title="שלב 4: פרטי אתר חדש">
+      <Card
+        icon={Globe2}
+        title="Step 4: New Site Details"
+        subtitle="Enter your new site details. We’ll adapt the workflow to use these credentials."
+      >
         <div className="space-y-6">
-          <Section title="דומיין" icon={Globe2}>
+          <Section title="Domain" icon={Globe2}>
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="דומיין מקור (מזוהה אוטומטית)">
+              <Field label="Source Domain (auto-detected)">
                 <input className="input" dir="ltr" value={oldDomain} onChange={(event) => setOldDomain(event.target.value)} />
               </Field>
-              <Field label="דומיין חדש" required>
+              <Field label="New Domain" required>
                 <input
                   className="input"
                   dir="ltr"
@@ -828,10 +846,10 @@ export default function ClonerWizard() {
 
           <Section title="WordPress" icon={Globe2}>
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="כתובת אתר">
+              <Field label="Site URL">
                 <input className="input" dir="ltr" placeholder="https://www.newsite.co.il" value={wpUrl} onChange={(event) => setWpUrl(event.target.value)} />
               </Field>
-              <Field label="שם משתמש">
+              <Field label="Username">
                 <input className="input" dir="ltr" placeholder="admin" value={wpUsername} onChange={(event) => setWpUsername(event.target.value)} />
               </Field>
               <Field label="App Password">
@@ -848,7 +866,7 @@ export default function ClonerWizard() {
               <div className="flex items-end">
                 <button className="btn-secondary" onClick={testWordPress}>
                   <Search size={16} />
-                  בדוק WordPress
+                  Validate WordPress
                 </button>
               </div>
             </div>
@@ -857,7 +875,7 @@ export default function ClonerWizard() {
 
           <Section title="Google Sheets" icon={Table2}>
             <div className="grid gap-4 md:grid-cols-2">
-              <Field label="כותרת הגיליון">
+              <Field label="Sheet Title">
                 <input
                   className="input"
                   value={sheetTitle}
@@ -867,9 +885,9 @@ export default function ClonerWizard() {
                   }}
                 />
               </Field>
-              <Field label="אישור OAuth2 (לשימוש חוזר)">
+              <Field label="OAuth2 Credential (reuse existing)">
                 <select className="input" value={gsheetsCredentialId} onChange={(event) => setGsheetsCredentialId(event.target.value)}>
-                  <option value="">— בחר אישור —</option>
+                  <option value="">— Select a credential —</option>
                   {gsheetCredOptions.map((option) => (
                     <option key={option.id} value={option.id}>
                       {option.name} ({option.id.slice(0, 6)}…)
@@ -880,44 +898,44 @@ export default function ClonerWizard() {
               <div className="flex items-end">
                 <button className="btn-secondary" onClick={testSheets}>
                   <Search size={16} />
-                  בדוק Sheets
+                  Validate Sheets
                 </button>
               </div>
             </div>
             <p className="mt-2 flex items-center gap-2 text-xs font-bold text-slate">
               <Table2 size={14} />
-              ייווצר גיליון חדש עם {buildSheetTabMappings().length} טאבים.
+              A new sheet will be created with {buildSheetTabMappings().length} tab(s).
             </p>
             {sheetsTest ? <TestMessage result={sheetsTest} /> : null}
           </Section>
 
-          <Section title="SMTP (אופציונלי)" icon={Mail}>
+          <Section title="SMTP (Optional)" icon={Mail}>
             <label className="flex items-center gap-2 text-sm font-bold">
               <input type="checkbox" checked={smtpEnabled} onChange={(event) => setSmtpEnabled(event.target.checked)} />
-              הפעל עדכון SMTP
+              Enable SMTP notifications
             </label>
             {smtpEnabled ? (
               <div className="mt-3 grid gap-4 md:grid-cols-2">
-                <Field label="שרת">
+                <Field label="Host">
                   <input className="input" dir="ltr" value={smtpHost} onChange={(event) => setSmtpHost(event.target.value)} />
                 </Field>
-                <Field label="פורט">
+                <Field label="Port">
                   <input className="input" dir="ltr" inputMode="numeric" value={smtpPort} onChange={(event) => setSmtpPort(event.target.value)} />
                 </Field>
-                <Field label="מייל">
+                <Field label="Email">
                   <input className="input" dir="ltr" value={smtpUser} onChange={(event) => setSmtpUser(event.target.value)} />
                 </Field>
-                <Field label="סיסמה">
+                <Field label="Password">
                   <input className="input" dir="ltr" type="password" autoComplete="off" value={smtpPass} onChange={(event) => setSmtpPass(event.target.value)} />
                 </Field>
               </div>
             ) : null}
           </Section>
 
-          <Section title="הרשאות גיליון" icon={KeyRound}>
+          <Section title="Sheet Permissions" icon={KeyRound}>
             <label className="flex items-center gap-2 text-sm font-bold">
               <input type="checkbox" checked={shareEnabled} onChange={(event) => setShareEnabled(event.target.checked)} />
-              שתף את הגיליון עם כתובת מייל
+              Share the sheet with an email address
             </label>
             {shareEnabled ? (
               <div className="mt-3 max-w-sm">
@@ -926,7 +944,7 @@ export default function ClonerWizard() {
             ) : null}
             <label className="mt-4 flex items-center gap-2 text-sm font-bold">
               <input type="checkbox" checked={activate} onChange={(event) => setActivate(event.target.checked)} />
-              הפעל את הוורקפלואו אוטומטית לאחר השכפול
+              Activate the workflow automatically after cloning
             </label>
           </Section>
         </div>
@@ -936,7 +954,7 @@ export default function ClonerWizard() {
           onNext={() => void handlePreview()}
           nextDisabled={!canAdvanceFrom[4] || Boolean(busy)}
           nextLoading={Boolean(busy)}
-          nextLabel="תצוגה מקדימה"
+          nextLabel="Preview"
           nextIcon={Eye}
         />
       </Card>
@@ -948,8 +966,8 @@ export default function ClonerWizard() {
     if (result) return renderCloneResult(result);
     if (preview) return renderPreview(preview);
     return (
-      <Card icon={CheckCircle2} title="שלב 5: תוצאות">
-        <p className="text-sm text-slate">אין תצוגה מקדימה זמינה. חזרה לשלב 4 כדי להפיק תצוגה מקדימה.</p>
+      <Card icon={CheckCircle2} title="Step 5: Results">
+        <p className="text-sm text-slate">No preview available. Go back to Step 4 to generate a preview.</p>
         <WizardFooter onBack={() => setStep(4)} />
       </Card>
     );
@@ -957,31 +975,35 @@ export default function ClonerWizard() {
 
   function renderPreview(data: ClonePreview) {
     return (
-      <Card icon={Eye} title="שלב 5: תצוגה מקדימה של השינויים">
+      <Card
+        icon={Eye}
+        title="Step 5: Preview Changes"
+        subtitle="Review the changes and execute the clone. Your new workflow will be ready to use."
+      >
         <div className="grid gap-3 sm:grid-cols-3">
-          <Stat label="שם הוורקפלואו החדש" value={data.workflowName} />
-          <Stat label="סה״כ nodes" value={String(data.totalNodes)} />
-          <Stat label="nodes לשינוי" value={String(data.nodesToChange)} />
+          <Stat label="New Workflow Name" value={data.workflowName} />
+          <Stat label="Total Nodes" value={String(data.totalNodes)} />
+          <Stat label="Nodes to Change" value={String(data.nodesToChange)} />
         </div>
 
-        <div className="mt-4 rounded-md border border-line bg-paper p-4">
+        <div className="mt-4 rounded-xl border border-line bg-paper p-4">
           <p className="flex items-center gap-2 font-black">
             <Table2 size={16} className="text-primary" />
-            גיליון Google חדש: {data.sheetPreview.title}
+            New Google Sheet: {data.sheetPreview.title}
           </p>
           <p className="mt-1 text-sm text-slate">
-            טאבים: {data.sheetPreview.tabs.join(", ") || "—"} · סה״כ {data.sheetPreview.totalRows} שורות
+            Tabs: {data.sheetPreview.tabs.join(", ") || "—"} · {data.sheetPreview.totalRows} rows total
           </p>
         </div>
 
         {data.changes.length ? (
           <div className="mt-4">
-            <p className="mb-2 text-sm font-black text-slate">שינויים צפויים ({data.changes.length})</p>
+            <p className="mb-2 text-sm font-black text-slate">Expected Changes ({data.changes.length})</p>
             <ChangeList changes={data.changes} />
           </div>
         ) : (
-          <p className="mt-4 rounded-md border border-line bg-paper p-3 text-sm text-slate">
-            השינויים המלאים (כולל מזהי הגיליון החדש) יבוצעו בעת השכפול.
+          <p className="mt-4 rounded-xl border border-line bg-paper p-3 text-sm text-slate">
+            Full changes (including new sheet IDs) will be applied during cloning.
           </p>
         )}
 
@@ -993,7 +1015,7 @@ export default function ClonerWizard() {
           onNext={() => setConfirmClone(true)}
           nextDisabled={Boolean(busy)}
           nextLoading={Boolean(busy)}
-          nextLabel="שכפל וורקפלואו"
+          nextLabel="Clone Workflow"
           nextIcon={Copy}
         />
       </Card>
@@ -1003,31 +1025,31 @@ export default function ClonerWizard() {
   function renderCloneResult(data: CloneResult) {
     const ok = data.ok && Boolean(data.workflow);
     return (
-      <Card icon={ok ? CheckCircle2 : AlertTriangle} title={ok ? "שלב 5: וורקפלואו שוכפל בהצלחה!" : "שלב 5: השכפול הסתיים עם שגיאות"}>
+      <Card icon={ok ? CheckCircle2 : AlertTriangle} title={ok ? "Step 5: Workflow Cloned Successfully!" : "Step 5: Clone Completed with Errors"}>
         {data.sheet ? (
-          <div className="rounded-md border border-line bg-paper p-4">
+          <div className="rounded-xl border border-line bg-paper p-4">
             <p className="flex items-center gap-2 font-black">
               <Table2 size={16} className="text-primary" />
-              Google Sheet חדש
+              New Google Sheet
             </p>
             <a className="mt-1 inline-flex items-center gap-1 break-all text-sm font-bold text-primary underline" href={data.sheet.url} target="_blank" rel="noreferrer">
               {data.sheet.url}
               <ExternalLink size={13} />
             </a>
             <p className="mt-1 text-sm text-slate">
-              טאבים: {data.sheet.tabsCreated.join(", ") || "—"} · {data.sheet.rowsWritten} שורות נכתבו
+              Tabs: {data.sheet.tabsCreated.join(", ") || "—"} · {data.sheet.rowsWritten} rows written
             </p>
           </div>
         ) : null}
 
         {data.workflow ? (
-          <div className="mt-3 rounded-md border border-line bg-paper p-4">
+          <div className="mt-3 rounded-xl border border-line bg-paper p-4">
             <p className="flex items-center gap-2 font-black">
               <Copy size={16} className="text-primary" />
-              וורקפלואו חדש: {data.workflow.name}
+              New Workflow: {data.workflow.name}
             </p>
             <p className="mt-1 text-sm text-slate">
-              ID: {data.workflow.id} · סטטוס: {data.workflow.active ? "✅ פעיל" : "⏸️ כבוי"}
+              ID: {data.workflow.id} · Status: {data.workflow.active ? "✅ Active" : "⏸️ Inactive"}
             </p>
             <a className="mt-1 inline-flex items-center gap-1 break-all text-sm font-bold text-primary underline" href={data.workflow.url} target="_blank" rel="noreferrer">
               {data.workflow.url}
@@ -1036,22 +1058,22 @@ export default function ClonerWizard() {
           </div>
         ) : null}
 
-        <div className="mt-4 rounded-md border border-line bg-paper p-4">
-          <p className="mb-2 text-sm font-black text-slate">סיכום שינויים</p>
+        <div className="mt-4 rounded-xl border border-line bg-paper p-4">
+          <p className="mb-2 text-sm font-black text-slate">Change Summary</p>
           <div className="grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
             <SummaryRow label="Google Sheets nodes" value={data.summary.googleSheetsNodes} />
             <SummaryRow label="WordPress nodes" value={data.summary.wordpressNodes} />
             <SummaryRow label="HTTP Request nodes" value={data.summary.httpRequestNodes} />
             <SummaryRow label="Code nodes" value={data.summary.codeNodes} />
             <SummaryRow label="Email nodes" value={data.summary.emailNodes} />
-            <SummaryRow label="אישורים שנוצרו" value={data.summary.credentialsCreated} />
+            <SummaryRow label="Credentials Created" value={data.summary.credentialsCreated} />
           </div>
-          <p className="mt-2 text-xs font-bold text-slate">סה״כ {data.summary.totalChanges} שינויים</p>
+          <p className="mt-2 text-xs font-bold text-slate">Total {data.summary.totalChanges} changes</p>
         </div>
 
         {data.changes.length ? (
           <div className="mt-4">
-            <p className="mb-2 text-sm font-black text-slate">לוג שינויים מלא ({data.changes.length})</p>
+            <p className="mb-2 text-sm font-black text-slate">Full Change Log ({data.changes.length})</p>
             <ChangeList changes={data.changes} />
           </div>
         ) : null}
@@ -1060,22 +1082,22 @@ export default function ClonerWizard() {
           {data.workflow ? (
             <a className="btn-primary" href={data.workflow.url} target="_blank" rel="noreferrer">
               <ExternalLink size={16} />
-              פתח ב-n8n
+              Open in n8n
             </a>
           ) : null}
           {data.sheet ? (
             <a className="btn-secondary" href={data.sheet.url} target="_blank" rel="noreferrer">
               <Table2 size={16} />
-              פתח גיליון
+              Open Sheet
             </a>
           ) : null}
           <button className="btn-secondary" onClick={resetForAnother}>
             <RefreshCw size={16} />
-            שכפל שוב
+            Clone Another
           </button>
           <button className="btn-secondary" onClick={() => navigate("/")}>
             <Home size={16} />
-            דף הבית
+            Dashboard
           </button>
         </div>
       </Card>
@@ -1088,46 +1110,79 @@ export default function ClonerWizard() {
 // ============================================================================
 
 function Stepper({ current }: { current: number }) {
+  const progress = STEPS.length > 1 ? ((current - 1) / (STEPS.length - 1)) * 100 : 0;
   return (
-    <ol className="flex items-center gap-2">
-      {STEPS.map((stepItem, index) => {
-        const Icon = stepItem.icon;
-        const done = current > stepItem.id;
-        const active = current === stepItem.id;
-        return (
-          <li key={stepItem.id} className="flex flex-1 items-center gap-2">
-            <div
-              className={[
-                "flex min-w-0 flex-1 items-center gap-2 rounded-md border px-3 py-2",
-                active
-                  ? "border-primary bg-primary/10 text-primary"
-                  : done
-                    ? "border-green-300 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-200"
-                    : "border-line bg-surface text-slate"
-              ].join(" ")}
-            >
-              <span className="grid h-6 w-6 shrink-0 place-items-center rounded-full border border-current text-xs font-black">
-                {done ? <CheckCircle2 size={14} /> : stepItem.id}
-              </span>
-              <span className="flex min-w-0 items-center gap-1.5">
-                <Icon size={15} className="shrink-0" />
-                <span className="truncate text-sm font-black max-sm:hidden">{stepItem.label}</span>
-              </span>
-            </div>
-            {index < STEPS.length - 1 ? <span className="h-px w-3 shrink-0 bg-line max-sm:hidden" /> : null}
-          </li>
-        );
-      })}
-    </ol>
+    <nav aria-label="Progress" className="mb-2">
+      <div className="relative">
+        {/* Connecting track + animated progress fill (sits behind the step circles). */}
+        <div className="absolute inset-x-0 top-5 h-0.5 bg-line" aria-hidden="true" />
+        <div
+          className="absolute start-0 top-5 h-0.5 bg-primary transition-all duration-500"
+          style={{ width: `${progress}%` }}
+          aria-hidden="true"
+        />
+        <ol className="relative flex items-start justify-between">
+          {STEPS.map((stepItem) => {
+            const Icon = stepItem.icon;
+            const done = current > stepItem.id;
+            const active = current === stepItem.id;
+            return (
+              <li key={stepItem.id} className="flex flex-col items-center gap-1.5">
+                <div
+                  aria-current={active ? "step" : undefined}
+                  className={[
+                    "grid h-10 w-10 place-items-center rounded-full border-2 transition-all",
+                    active
+                      ? "border-primary bg-primary text-white shadow-panel"
+                      : done
+                        ? "border-green-500 bg-green-500 text-white"
+                        : "border-line bg-surface text-slate"
+                  ].join(" ")}
+                >
+                  {done ? (
+                    <CheckCircle2 size={20} />
+                  ) : active ? (
+                    <Icon size={18} />
+                  ) : (
+                    <span className="text-sm font-black">{stepItem.id}</span>
+                  )}
+                </div>
+                <span
+                  className={[
+                    "text-xs font-black",
+                    active ? "text-primary" : done ? "text-green-600 dark:text-green-400" : "text-slate"
+                  ].join(" ")}
+                >
+                  {stepItem.label}
+                </span>
+              </li>
+            );
+          })}
+        </ol>
+      </div>
+    </nav>
   );
 }
 
-function Card({ icon: Icon, title, children }: { icon: typeof Globe2; title: string; children: ReactNode }) {
+function Card({
+  icon: Icon,
+  title,
+  subtitle,
+  children
+}: {
+  icon: typeof Globe2;
+  title: string;
+  subtitle?: string;
+  children: ReactNode;
+}) {
   return (
-    <div className="rounded-md border border-line bg-surface p-6 shadow-panel">
-      <div className="mb-5 flex items-center gap-2">
-        <Icon size={20} className="text-primary" />
-        <h2 className="text-xl font-black">{title}</h2>
+    <div className="rounded-xl border border-line bg-surface p-6 shadow-panel sm:p-8">
+      <div className="mb-5">
+        <div className="flex items-center gap-2">
+          <Icon size={22} className="shrink-0 text-primary" />
+          <h2 className="text-xl font-black">{title}</h2>
+        </div>
+        {subtitle ? <p className="mt-1.5 text-sm text-slate">{subtitle}</p> : null}
       </div>
       {children}
     </div>
@@ -1136,7 +1191,7 @@ function Card({ icon: Icon, title, children }: { icon: typeof Globe2; title: str
 
 function Section({ title, icon: Icon, children }: { title: string; icon: typeof Globe2; children: ReactNode }) {
   return (
-    <section className="rounded-md border border-line bg-paper p-4">
+    <section className="rounded-xl border border-line bg-paper p-5">
       <div className="mb-3 flex items-center gap-2">
         <Icon size={16} className="text-primary" />
         <h3 className="text-sm font-black uppercase tracking-wide text-slate">{title}</h3>
@@ -1146,14 +1201,30 @@ function Section({ title, icon: Icon, children }: { title: string; icon: typeof 
   );
 }
 
-function Field({ label, required, children }: { label: string; required?: boolean; children: ReactNode }) {
+function Field({
+  label,
+  required,
+  helpText,
+  children
+}: {
+  label: string;
+  required?: boolean;
+  helpText?: string;
+  children: ReactNode;
+}) {
   return (
     <label className="block">
-      <span className="mb-1 block text-sm font-black text-ink">
+      <span className="mb-1.5 block text-sm font-black text-ink">
         {label}
         {required ? <span className="text-red-600"> *</span> : null}
       </span>
       {children}
+      {helpText ? (
+        <span className="mt-1.5 flex items-center gap-1 text-xs text-slate">
+          <Info size={12} className="shrink-0" />
+          {helpText}
+        </span>
+      ) : null}
     </label>
   );
 }
@@ -1164,14 +1235,18 @@ function Banner({ tone, children, onClose }: { tone: "error" | "info"; children:
     info: "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-900 dark:bg-blue-950/40 dark:text-blue-200"
   };
   return (
-    <div className={`mt-4 flex items-center gap-2 rounded-md border p-3 text-sm font-bold ${tones[tone]}`}>
+    <div
+      role={tone === "error" ? "alert" : "status"}
+      aria-live={tone === "error" ? "assertive" : "polite"}
+      className={`mt-4 flex items-center gap-2 rounded-xl border p-3 text-sm font-bold ${tones[tone]}`}
+    >
       <span className="flex flex-1 items-center gap-2">{children}</span>
       {onClose ? (
         <button
           type="button"
           onClick={onClose}
-          aria-label="סגור"
-          className="shrink-0 rounded-sm p-1 transition hover:bg-black/5 dark:hover:bg-white/10"
+          aria-label="Close"
+          className="shrink-0 rounded-md p-1 transition hover:bg-black/5 dark:hover:bg-white/10"
         >
           <X size={16} />
         </button>
@@ -1184,7 +1259,7 @@ function TestMessage({ result }: { result: { ok: boolean; message: string } }) {
   return (
     <p
       className={[
-        "mt-3 flex items-center gap-2 rounded-md border p-2.5 text-sm font-bold",
+        "mt-3 flex items-center gap-2 rounded-xl border p-2.5 text-sm font-bold",
         result.ok
           ? "border-green-200 bg-green-50 text-green-700 dark:border-green-900 dark:bg-green-950/40 dark:text-green-200"
           : "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-900 dark:bg-amber-950/40 dark:text-amber-100"
@@ -1198,7 +1273,7 @@ function TestMessage({ result }: { result: { ok: boolean; message: string } }) {
 
 function Stat({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-md border border-line bg-paper p-3">
+    <div className="rounded-xl border border-line bg-paper p-3">
       <p className="text-xs font-black uppercase text-slate">{label}</p>
       <p className="mt-1 truncate text-sm font-black" title={value}>
         {value || "—"}
@@ -1209,7 +1284,7 @@ function Stat({ label, value }: { label: string; value: string }) {
 
 function SummaryRow({ label, value }: { label: string; value: number }) {
   return (
-    <div className="flex items-center justify-between gap-2 rounded-sm bg-surface px-3 py-2 text-sm">
+    <div className="flex items-center justify-between gap-2 rounded-md bg-surface px-3 py-2 text-sm">
       <span className="font-bold text-slate">{label}</span>
       <span className="font-black">{value}</span>
     </div>
@@ -1218,13 +1293,13 @@ function SummaryRow({ label, value }: { label: string; value: number }) {
 
 function ChangeList({ changes }: { changes: CloneResult["changes"] }) {
   return (
-    <div className="max-h-[360px] space-y-2 overflow-auto rounded-md border border-line bg-paper p-3">
+    <div className="max-h-[360px] space-y-2 overflow-auto rounded-xl border border-line bg-paper p-3">
       {changes.map((change, index) => (
-        <div key={`${change.nodeName}-${index}`} className="rounded-sm border border-line bg-surface p-3">
+        <div key={`${change.nodeName}-${index}`} className="rounded-md border border-line bg-surface p-3">
           <p className="flex items-center gap-2 text-sm font-black">
             <CheckCircle2 size={14} className="text-green-600" />
             {change.nodeName}
-            <span className="rounded-sm bg-paper px-1.5 py-0.5 text-[11px] font-bold text-slate">{change.change}</span>
+            <span className="rounded-md bg-paper px-1.5 py-0.5 text-[11px] font-bold text-slate">{change.change}</span>
           </p>
           {change.old != null || change.new != null ? (
             <p dir="ltr" className="mt-1 break-all text-start text-xs text-slate">
@@ -1242,22 +1317,22 @@ function WizardFooter({
   onNext,
   nextDisabled,
   nextLoading,
-  nextLabel = "הבא",
-  nextIcon: NextIcon = ArrowLeft
+  nextLabel = "Next",
+  nextIcon: NextIcon = ArrowRight
 }: {
   onBack?: () => void;
   onNext?: () => void;
   nextDisabled?: boolean;
   nextLoading?: boolean;
   nextLabel?: string;
-  nextIcon?: typeof ArrowLeft;
+  nextIcon?: typeof ArrowRight;
 }) {
   return (
-    <div className="mt-6 flex items-center justify-between border-t border-line pt-4">
+    <div className="mt-6 flex items-center justify-between gap-3 border-t border-line pt-4">
       {onBack ? (
         <button className="btn-secondary" onClick={onBack}>
-          <ArrowRight size={16} />
-          חזרה
+          <ArrowLeft size={16} />
+          Back
         </button>
       ) : (
         <span />
@@ -1282,10 +1357,10 @@ function AnalysisView({ analysis }: { analysis: WorkflowAnalysis }) {
       <div>
         <p className="flex items-center gap-2 font-black">
           <Database size={16} className="text-primary" />
-          ניתוח: {analysis.workflowName || "(ללא שם)"}
+          Analysis: {analysis.workflowName || "(unnamed)"}
         </p>
         <p className="mt-1 text-xs text-slate">
-          <span className="font-bold">דומיינים שזוהו: </span>
+          <span className="font-bold">Domains detected: </span>
           {analysis.domains.length ? analysis.domains.join(", ") : "—"}
         </p>
       </div>
@@ -1309,7 +1384,7 @@ function AnalysisView({ analysis }: { analysis: WorkflowAnalysis }) {
       />
       <AnalysisGroup
         icon={Code2}
-        title={`Code nodes: ${analysis.codeNodes.length} nodes (${analysis.codeNodes.filter((node) => node.hasDomainRefs).length} עם הפניות לדומיין)`}
+        title={`Code nodes: ${analysis.codeNodes.length} nodes (${analysis.codeNodes.filter((node) => node.hasDomainRefs).length} with domain references)`}
         items={[]}
       />
       {analysis.emailNodes.length ? (
@@ -1323,7 +1398,7 @@ function AnalysisView({ analysis }: { analysis: WorkflowAnalysis }) {
       <div>
         <p className="flex items-center gap-2 text-sm font-black">
           <KeyRound size={15} className="text-primary" />
-          אישורים קיימים
+          Existing Credentials
         </p>
         <ul className="mt-1 space-y-1">
           {analysis.credentialsUsed.length ? (
@@ -1369,15 +1444,15 @@ function Toast({ tone, message, onClose }: { tone: "success" | "error"; message:
     error: "border-red-300 bg-red-50 text-red-800 dark:border-red-900 dark:bg-red-950/60 dark:text-red-100"
   };
   return (
-    <div dir="rtl" className="fixed inset-x-0 bottom-5 z-50 flex justify-center px-4">
-      <div className={`flex items-center gap-2 rounded-md border px-4 py-3 text-sm font-black shadow-panel ${tones[tone]}`}>
+    <div className="fixed inset-x-0 bottom-5 z-50 flex justify-center px-4">
+      <div className={`flex items-center gap-2 rounded-xl border px-4 py-3 text-sm font-black shadow-panel ${tones[tone]}`}>
         {tone === "success" ? <CheckCircle2 size={18} /> : <AlertTriangle size={18} />}
         <span>{message}</span>
         <button
           type="button"
           onClick={onClose}
-          aria-label="סגור"
-          className="ms-2 rounded-sm p-1 transition hover:bg-black/5 dark:hover:bg-white/10"
+          aria-label="Close"
+          className="ms-2 rounded-md p-1 transition hover:bg-black/5 dark:hover:bg-white/10"
         >
           <X size={15} />
         </button>
@@ -1402,33 +1477,33 @@ function ConfirmDialog({
   onConfirm: () => void;
 }) {
   return (
-    <div dir="rtl" className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true">
-      <div className="w-full max-w-md rounded-md border border-line bg-surface p-6 shadow-panel">
+    <div className="fixed inset-0 z-50 grid place-items-center bg-black/40 p-4" role="dialog" aria-modal="true">
+      <div className="w-full max-w-md rounded-xl border border-line bg-surface p-6 shadow-panel">
         <div className="mb-3 flex items-center gap-2">
           <AlertTriangle size={20} className="text-amber-500" />
-          <h2 className="text-lg font-black">אישור ביצוע שכפול</h2>
+          <h2 className="text-lg font-black">Confirm Clone</h2>
         </div>
         <p className="text-sm text-slate">
-          הפעולה תיצור גיליון Google חדש, אישורים ו-Workflow חדש ב-n8n
-          {activate ? " ותפעיל אותו אוטומטית" : ""}. ודא/י שכל הפרטים נכונים לפני ההמשך.
+          This will create a new Google Sheet, credentials, and a new workflow in n8n
+          {activate ? " and activate it automatically" : ""}. Make sure all details are correct before proceeding.
         </p>
-        <div className="mt-3 space-y-1 rounded-md border border-line bg-paper p-3 text-sm">
+        <div className="mt-3 space-y-1 rounded-xl border border-line bg-paper p-3 text-sm">
           <p>
-            <span className="font-bold text-slate">וורקפלואו: </span>
+            <span className="font-bold text-slate">Workflow: </span>
             <span className="font-black">{workflowName || "—"}</span>
           </p>
           <p dir="ltr" className="text-start">
-            <span className="font-bold text-slate">דומיין חדש: </span>
+            <span className="font-bold text-slate">New Domain: </span>
             <span className="font-black">{newDomain || "—"}</span>
           </p>
         </div>
         <div className="mt-5 flex items-center justify-end gap-2">
           <button className="btn-secondary" onClick={onCancel} disabled={busy}>
-            ביטול
+            Cancel
           </button>
           <button className="btn-primary" onClick={onConfirm} disabled={busy}>
             {busy ? <Loader2 size={16} className="animate-spin" /> : <Copy size={16} />}
-            כן, בצע שכפול
+            Yes, Clone
           </button>
         </div>
       </div>
@@ -1437,23 +1512,23 @@ function ConfirmDialog({
 }
 
 const STATUS_META: Record<ClonerJobStatus, { label: string; className: string }> = {
-  pending: { label: "ממתין", className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" },
-  connecting: { label: "מתחבר", className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" },
-  uploading: { label: "מעלה", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200" },
-  cloning: { label: "משכפל", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200" },
-  done: { label: "הושלם", className: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200" },
-  failed: { label: "נכשל", className: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200" }
+  pending: { label: "Pending", className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" },
+  connecting: { label: "Connecting", className: "bg-slate-100 text-slate-700 dark:bg-slate-800 dark:text-slate-200" },
+  uploading: { label: "Uploading", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200" },
+  cloning: { label: "Cloning", className: "bg-blue-100 text-blue-800 dark:bg-blue-950 dark:text-blue-200" },
+  done: { label: "Done", className: "bg-green-100 text-green-800 dark:bg-green-950 dark:text-green-200" },
+  failed: { label: "Failed", className: "bg-red-100 text-red-800 dark:bg-red-950 dark:text-red-200" }
 };
 
 function StatusBadge({ status }: { status: ClonerJobStatus }) {
   const meta = STATUS_META[status] ?? STATUS_META.pending;
-  return <span className={`rounded-sm px-2 py-0.5 text-[11px] font-black ${meta.className}`}>{meta.label}</span>;
+  return <span className={`rounded-md px-2 py-0.5 text-[11px] font-black ${meta.className}`}>{meta.label}</span>;
 }
 
 function formatJobDate(iso: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString("he-IL", { dateStyle: "short", timeStyle: "short" });
+  return date.toLocaleString("en-US", { dateStyle: "short", timeStyle: "short" });
 }
 
 function HistoryPanel({
@@ -1470,19 +1545,19 @@ function HistoryPanel({
   onRefresh: () => void;
 }) {
   return (
-    <div className="mt-4 rounded-md border border-line bg-surface shadow-panel">
+    <div className="mt-4 rounded-xl border border-line bg-surface shadow-panel">
       <div className="flex items-center justify-between gap-2 p-4">
         <button type="button" onClick={onToggle} className="flex items-center gap-2 text-start">
           <History size={18} className="text-primary" />
-          <span className="text-sm font-black">היסטוריית שכפולים אחרונים</span>
+          <span className="text-sm font-black">Recent Clone History</span>
           {jobs.length ? (
-            <span className="rounded-sm bg-paper px-2 py-0.5 text-xs font-bold text-slate">{jobs.length}</span>
+            <span className="rounded-md bg-paper px-2 py-0.5 text-xs font-bold text-slate">{jobs.length}</span>
           ) : null}
         </button>
         {open ? (
           <button type="button" className="btn-secondary h-8 px-2 text-xs" onClick={onRefresh} disabled={busy}>
             {busy ? <Loader2 size={14} className="animate-spin" /> : <RefreshCw size={14} />}
-            רענן
+            Refresh
           </button>
         ) : null}
       </div>
@@ -1492,18 +1567,18 @@ function HistoryPanel({
           {busy && jobs.length === 0 ? (
             <p className="flex items-center gap-2 text-sm text-slate">
               <Loader2 size={16} className="animate-spin" />
-              טוען היסטוריה…
+              Loading history…
             </p>
           ) : jobs.length === 0 ? (
-            <p className="text-sm text-slate">אין עדיין שכפולים. השכפול הראשון יופיע כאן.</p>
+            <p className="text-sm text-slate">No clones yet. Your first clone will appear here.</p>
           ) : (
             <ul className="space-y-2">
               {jobs.map((job) => (
-                <li key={job.id} className="rounded-md border border-line bg-paper p-3">
+                <li key={job.id} className="rounded-xl border border-line bg-paper p-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="flex min-w-0 items-center gap-2">
                       <StatusBadge status={job.status} />
-                      <span className="truncate text-sm font-black">{job.sourceWorkflowName || "(ללא שם)"}</span>
+                      <span className="truncate text-sm font-black">{job.sourceWorkflowName || "(unnamed)"}</span>
                     </span>
                     <span className="flex items-center gap-1 text-xs text-slate">
                       <Clock size={12} />
@@ -1526,7 +1601,7 @@ function HistoryPanel({
                           rel="noreferrer"
                         >
                           <Table2 size={12} />
-                          גיליון
+                          Sheet
                         </a>
                       ) : null}
                       {job.newSiteUrl ? (
@@ -1537,7 +1612,7 @@ function HistoryPanel({
                           rel="noreferrer"
                         >
                           <Globe2 size={12} />
-                          אתר
+                          Site
                         </a>
                       ) : null}
                     </div>

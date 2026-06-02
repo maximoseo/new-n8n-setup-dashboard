@@ -210,7 +210,7 @@ test("cloner routes against a mock n8n instance", async (t) => {
     assert.equal(body.ok, false);
   });
 
-  await t.test("POST /connect surfaces an n8n auth failure as a Hebrew error", async () => {
+  await t.test("POST /connect surfaces an n8n auth failure as an English error", async () => {
     const response = await fetch(`${base}/api/cloner/connect`, {
       method: "POST",
       headers: { "content-type": "application/json" },
@@ -219,6 +219,6 @@ test("cloner routes against a mock n8n instance", async (t) => {
     assert.equal(response.status, 401);
     const body = await response.json();
     assert.equal(body.ok, false);
-    assert.match(body.error, /API Key|אימות/);
+    assert.match(body.error, /API Key/);
   });
 });
