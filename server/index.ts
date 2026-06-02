@@ -7,6 +7,7 @@ import { authMiddleware } from "./authMiddleware.js";
 import { generateArtifacts } from "./artifacts.js";
 import { discoverSite, normalizeUrl } from "./discovery.js";
 import { getSite, getUserSettings, listSites, upsertSite, upsertUserSettings } from "./storage.js";
+import { clonerRouter } from "./cloner/routes.js";
 import type { PromptBundle, Site, SiteInput, UserSettings, WorkflowBundle } from "../shared/types.js";
 
 const app = express();
@@ -145,6 +146,8 @@ app.patch("/api/sites/:siteId", async (request, response, next) => {
     next(error);
   }
 });
+
+app.use("/api/cloner", clonerRouter);
 
 const distPath = path.resolve(process.cwd(), "dist");
 app.use(express.static(distPath));
